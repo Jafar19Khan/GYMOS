@@ -63,7 +63,7 @@ export default async function MemberDashboard() {
         <div><p className="text-xs text-white/40">Gym</p><p className="mt-1">{user.gym?.name ?? "Not linked"}</p></div>
         <div><p className="text-xs text-white/40">Membership plans on record</p><p className="mt-1">{memberships.length}</p></div>
       </div>
-      <p className="mt-5 text-xs text-white/40">Profile editing, receipts, workout plans and progress tracking will be added in upcoming milestones.</p>
+      <p className="mt-5 text-xs text-white/40">You can review your payment history and open printable receipts from Payments. Profile changes are handled by authorized gym staff.</p>
     </section>
   </AppShell>;
 }
