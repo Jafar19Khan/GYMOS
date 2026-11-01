@@ -9,9 +9,10 @@ GYMOS contains a public gym website, an owner/staff operations workspace, a memb
 - Web and server: Next.js App Router, TypeScript, Tailwind CSS and Framer Motion.
 - Domain/API: route handlers and server components call server-only domain/auth modules.
 - Persistence: PostgreSQL with Prisma migrations.
-- Local runtime: Docker Compose; the web container applies committed migrations before starting.
+- Local runtime: Docker Compose remains available for development where Docker is supported.
+- AWS evaluation runtime: one Amazon Linux 2023 EC2 host runs Node.js 22, PostgreSQL 15 on loopback, Nginx and the Next.js service under systemd. Terraform provisions the VPC/security group/EC2/SSM role; deployment is performed through PowerShell and AWS Systems Manager without local Docker.
 - Delivery: GitHub Actions validates the Prisma schema, applies migrations to a temporary PostgreSQL service, runs tests/build, audits dependencies and validates Terraform formatting.
-- Cloud: AWS only after a separate account and strict ₹0 cost review. No AWS resources are currently provisioned.
+- Cloud: an AWS EC2 deployment configuration is prepared, but no AWS resources have been provisioned. Apply is blocked pending account-specific credit, ap-south-1 price and explicit cost review. This single-host evaluation setup is not production-ready.
 
 ## Identity and tenancy
 
@@ -48,4 +49,4 @@ BMR/TDEE and macro estimates are coaching aids, not medical advice. Mifflin-St J
 
 ## Deployment shape
 
-Local development first. Any AWS architecture must be separately cost-reviewed for account, region, quotas, pricing, logs, data transfer and expected usage before Terraform apply.
+For Windows machines that cannot run Docker Desktop, the evaluation path is a single EC2 host with Node.js, PostgreSQL and Nginx, managed by Terraform and deployed through SSM from PowerShell. PostgreSQL is local to the instance and not publicly exposed. HTTPS uses a temporary self-signed IP certificate for evaluation only. This is a single point of failure and has no automated database backup. Check account plan, credits, region pricing, quotas, logs, data transfer and expected usage before Terraform apply. Production requires a domain/trusted certificate, backup and restore process, monitoring, MFA/account recovery, high availability and security validation.
