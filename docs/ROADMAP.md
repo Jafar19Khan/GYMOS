@@ -6,23 +6,25 @@
 - [x] Initial responsive marketing experience
 - [x] Docker Compose baseline
 - [x] CI/security workflow scaffolding
-- [x] Terraform safety baseline and cost gate
+- [x] Terraform safety baseline and strict cost gate
 
 ## Milestone 1 — Product/data foundation
 
-- [ ] PostgreSQL schema and Prisma migrations
-- [ ] Authentication/session model and privileged account bootstrap
-- [ ] Server-side authorization utilities and isolation tests
-- [ ] Owner/member application shells
-- [ ] Audit event model
+- [x] PostgreSQL schema and initial Prisma migration
+- [x] Password hashing, session model and operator-controlled bootstrap accounts
+- [x] Server-side role guards and staff permission policy
+- [x] Super Admin, Owner and Member dashboard starting pages
+- [x] Audit event data model
+- [x] Auth validation and permission-policy unit tests
 
 ## Milestone 2 — Gym operations
 
-- [ ] Member and staff management with permission sets
+- [ ] Member and staff CRUD with permission-aware workflows
 - [ ] Membership plans, renewals, freezes and expiry
-- [ ] Manual payment ledger, receipts, refunds and reporting
+- [ ] Manual payment ledger, receipts, refunds and reconciled reporting
 - [ ] Manual and QR attendance
 - [ ] Class schedule, transactional capacity and FIFO waitlist
+- [ ] Immutable audit-event write service and review UI
 
 ## Milestone 3 — Fitness and content
 
@@ -34,6 +36,7 @@
 
 ## Milestone 4 — Quality and deployment readiness
 
+- [ ] Login rate limiting, MFA and account recovery
 - [ ] Accessibility, performance and end-to-end tests
 - [ ] Backup and restore drills
 - [ ] Monitoring, alerting and incident runbooks
