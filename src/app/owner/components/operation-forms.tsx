@@ -6,7 +6,10 @@ import {
   assignMembershipAction,
   bookGymClassAction,
   cancelGymClassBookingAction,
+  createAnnouncementAction,
+  createDietPlanAction,
   createGymClassAction,
+  createWorkoutPlanAction,
   createMemberAction,
   createMembershipPlanAction,
   createStaffAction,
@@ -20,6 +23,9 @@ import {
   updateMemberStatusAction,
   updateStaffPermissionsAction,
   updateStaffStatusAction,
+  updateGymWebsiteAction,
+  logWorkoutSessionAction,
+  recordFitnessProgressAction,
 } from "@/app/actions/gym-operations";
 import type { ActionState } from "@/app/actions/gym-operations";
 
@@ -416,4 +422,97 @@ export function ArchiveMemberForm({ memberId }: { memberId: string }) {
       <Notice state={state} />
     </form>
   </details>;
+}
+
+
+export function WorkoutPlanCreateForm({ members }: { members: MemberOption[] }) {
+  const [state, action, pending] = useActionState(createWorkoutPlanAction, initial);
+  return <section className="surface rounded-2xl p-5 md:p-6">
+    <p className="eyebrow">Training plan</p>
+    <h2 className="mt-2 text-lg font-extrabold">Assign workout plan</h2>
+    <form action={action} className="mt-5 space-y-3">
+      <label className="block"><span className="mb-2 block text-xs font-semibold text-white/65">Member</span><select name="memberId" required defaultValue="" className="w-full rounded-xl border border-white/10 bg-[#111612] px-3.5 py-3 text-sm text-white"><option value="" disabled>Select member</option>{members.map((m) => <option key={m.id} value={m.id}>{m.name} · {m.email}</option>)}</select></label>
+      <Field label="Plan title" name="title" required placeholder="Beginner strength plan" />
+      <label className="block"><span className="mb-2 block text-xs font-semibold text-white/65">Description (optional)</span><textarea name="description" maxLength={1000} rows={2} className="w-full rounded-xl border border-white/10 bg-[#111612] px-3.5 py-3 text-sm text-white" /></label>
+      <label className="block"><span className="mb-2 block text-xs font-semibold text-white/65">Exercises / instructions</span><textarea name="exerciseInstructions" required minLength={2} maxLength={4000} rows={5} placeholder={"Squat — 3 sets × 10 reps\nPush-up — 3 sets × 8 reps"} className="w-full rounded-xl border border-white/10 bg-[#111612] px-3.5 py-3 text-sm text-white outline-none focus:border-[#b6f36a]/60" /></label>
+      <button disabled={pending || !members.length} className="w-full rounded-full bg-[#b6f36a] px-5 py-3.5 text-xs font-black text-[#090b0a] disabled:opacity-50">{pending ? "Assigning…" : "Assign workout plan"}</button>
+    </form>
+    <Notice state={state} />
+  </section>;
+}
+
+export function DietPlanCreateForm({ members }: { members: MemberOption[] }) {
+  const [state, action, pending] = useActionState(createDietPlanAction, initial);
+  return <section className="surface rounded-2xl p-5 md:p-6">
+    <p className="eyebrow">Nutrition targets</p>
+    <h2 className="mt-2 text-lg font-extrabold">Assign diet targets</h2>
+    <p className="mt-2 text-xs leading-5 text-white/40">General fitness targets only. Medical nutrition therapy must be handled by a qualified professional.</p>
+    <form action={action} className="mt-5 space-y-3">
+      <label className="block"><span className="mb-2 block text-xs font-semibold text-white/65">Member</span><select name="memberId" required defaultValue="" className="w-full rounded-xl border border-white/10 bg-[#111612] px-3.5 py-3 text-sm text-white"><option value="" disabled>Select member</option>{members.map((m) => <option key={m.id} value={m.id}>{m.name} · {m.email}</option>)}</select></label>
+      <Field label="Plan title" name="title" required placeholder="Balanced nutrition targets" />
+      <div className="grid grid-cols-2 gap-3"><Field label="Calories / day" name="targetCalories" type="number" required min="500" placeholder="2200" /><Field label="Protein (g)" name="proteinGrams" type="number" required min="0" placeholder="140" /><Field label="Carbs (g)" name="carbsGrams" type="number" required min="0" placeholder="220" /><Field label="Fat (g)" name="fatGrams" type="number" required min="0" placeholder="70" /></div>
+      <label className="block"><span className="mb-2 block text-xs font-semibold text-white/65">Notes (optional)</span><textarea name="notes" maxLength={2000} rows={3} className="w-full rounded-xl border border-white/10 bg-[#111612] px-3.5 py-3 text-sm text-white" /></label>
+      <button disabled={pending || !members.length} className="w-full rounded-full bg-[#b6f36a] px-5 py-3.5 text-xs font-black text-[#090b0a] disabled:opacity-50">{pending ? "Assigning…" : "Assign diet targets"}</button>
+    </form>
+    <Notice state={state} />
+  </section>;
+}
+
+export function WorkoutSessionLogForm({ planId }: { planId: string }) {
+  const [state, action, pending] = useActionState(logWorkoutSessionAction, initial);
+  return <form action={action} className="mt-4 space-y-2 rounded-xl border border-white/10 p-3">
+    <input type="hidden" name="planId" value={planId} />
+    <Field label="Duration (minutes, optional)" name="durationMinutes" type="number" min="1" placeholder="45" />
+    <label className="block"><span className="mb-2 block text-[11px] font-semibold text-white/60">Session note (optional)</span><input name="notes" maxLength={500} className="w-full rounded-lg border border-white/10 bg-[#111612] px-3 py-2.5 text-xs text-white" /></label>
+    <button disabled={pending} className="rounded-full bg-[#b6f36a] px-4 py-2.5 text-[10px] font-black text-[#090b0a] disabled:opacity-50">{pending ? "Saving…" : "Log completed session"}</button>
+    <Notice state={state} />
+  </form>;
+}
+
+export function ProgressEntryForm() {
+  const [state, action, pending] = useActionState(recordFitnessProgressAction, initial);
+  return <section className="surface rounded-2xl p-5 md:p-6">
+    <p className="eyebrow">Progress tracking</p>
+    <h2 className="mt-2 text-lg font-extrabold">Record measurement</h2>
+    <form action={action} className="mt-4 grid gap-3 sm:grid-cols-2">
+      <label className="block"><span className="mb-2 block text-xs font-semibold text-white/65">Metric</span><select name="metric" required defaultValue="WEIGHT_KG" className="w-full rounded-xl border border-white/10 bg-[#111612] px-3 py-3 text-xs text-white"><option value="WEIGHT_KG">Weight (kg)</option><option value="BODY_FAT_PERCENT">Body fat (%)</option><option value="WAIST_CM">Waist (cm)</option><option value="CHEST_CM">Chest (cm)</option></select></label>
+      <Field label="Measurement" name="value" required placeholder="75.5" />
+      <label className="block sm:col-span-2"><span className="mb-2 block text-xs font-semibold text-white/65">Note (optional)</span><textarea name="note" maxLength={300} rows={2} className="w-full rounded-xl border border-white/10 bg-[#111612] px-3 py-3 text-xs text-white" /></label>
+      <div className="sm:col-span-2"><button disabled={pending} className="rounded-full bg-[#b6f36a] px-5 py-3 text-xs font-black text-[#090b0a] disabled:opacity-50">{pending ? "Saving…" : "Save measurement"}</button><Notice state={state} /></div>
+    </form>
+  </section>;
+}
+
+export function AnnouncementCreateForm() {
+  const [state, action, pending] = useActionState(createAnnouncementAction, initial);
+  return <section className="surface rounded-2xl p-5 md:p-6">
+    <p className="eyebrow">Gym updates</p><h2 className="mt-2 text-lg font-extrabold">Publish announcement</h2>
+    <form action={action} className="mt-4 space-y-3">
+      <Field label="Title" name="title" required placeholder="Holiday opening hours" />
+      <label className="block"><span className="mb-2 block text-xs font-semibold text-white/65">Message</span><textarea name="body" required minLength={2} maxLength={2000} rows={4} className="w-full rounded-xl border border-white/10 bg-[#111612] px-3.5 py-3 text-sm text-white" /></label>
+      <label className="block"><span className="mb-2 block text-xs font-semibold text-white/65">Audience</span><select name="audience" defaultValue="MEMBERS" className="w-full rounded-xl border border-white/10 bg-[#111612] px-3.5 py-3 text-xs text-white"><option value="MEMBERS">Members</option><option value="ALL">All gym users</option></select></label>
+      <button disabled={pending} className="w-full rounded-full bg-[#b6f36a] px-5 py-3 text-xs font-black text-[#090b0a] disabled:opacity-50">{pending ? "Publishing…" : "Publish announcement"}</button>
+    </form><Notice state={state} />
+  </section>;
+}
+
+export function GymWebsiteSettingsForm({ settings }: { settings: {
+  heroTitle: string; heroSubtitle: string; aboutText: string; facilitiesText: string;
+  address: string; contactEmail: string; contactPhone: string; isPublished: boolean;
+} }) {
+  const [state, action, pending] = useActionState(updateGymWebsiteAction, initial);
+  return <section className="surface rounded-2xl p-5 md:p-6">
+    <p className="eyebrow">Public gym website</p><h2 className="mt-2 text-lg font-extrabold">Website content</h2>
+    <p className="mt-2 text-xs leading-5 text-white/40">Edits text and contact details for your public gym page. Image/video uploads require a configured storage provider and are not enabled.</p>
+    <form action={action} className="mt-5 space-y-3">
+      <Field label="Hero title" name="heroTitle" required placeholder="Train with intent." />
+      <label className="block"><span className="mb-2 block text-xs font-semibold text-white/65">Hero subtitle</span><textarea name="heroSubtitle" required maxLength={300} rows={2} defaultValue={settings.heroSubtitle} className="w-full rounded-xl border border-white/10 bg-[#111612] px-3.5 py-3 text-sm text-white" /></label>
+      <label className="block"><span className="mb-2 block text-xs font-semibold text-white/65">About the gym</span><textarea name="aboutText" required maxLength={2000} rows={4} defaultValue={settings.aboutText} className="w-full rounded-xl border border-white/10 bg-[#111612] px-3.5 py-3 text-sm text-white" /></label>
+      <label className="block"><span className="mb-2 block text-xs font-semibold text-white/65">Facilities (one per line)</span><textarea name="facilitiesText" maxLength={1500} rows={4} defaultValue={settings.facilitiesText} className="w-full rounded-xl border border-white/10 bg-[#111612] px-3.5 py-3 text-sm text-white" /></label>
+      <Field label="Address" name="address" placeholder="Gym address" />
+      <div className="grid gap-3 sm:grid-cols-2"><Field label="Contact email" name="contactEmail" type="email" placeholder="hello@example.com" /><Field label="Contact phone" name="contactPhone" placeholder="+91..." /></div>
+      <label className="flex items-center gap-2 text-xs text-white/65"><input type="checkbox" name="isPublished" defaultChecked={settings.isPublished} className="accent-[#b6f36a]" /> Publish the public gym page</label>
+      <button disabled={pending} className="w-full rounded-full bg-[#b6f36a] px-5 py-3.5 text-xs font-black text-[#090b0a] disabled:opacity-50">{pending ? "Saving…" : "Save website settings"}</button>
+    </form><Notice state={state} />
+  </section>;
 }
