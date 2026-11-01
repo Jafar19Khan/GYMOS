@@ -1,7 +1,7 @@
 "use server";
 
 import { randomBytes, randomUUID } from "node:crypto";
-import { MembershipStatus, PaymentMethod, PaymentType, Role, UserStatus } from "@prisma/client";
+import { AttendanceMethod, BookingStatus, MembershipStatus, PaymentMethod, PaymentType, Role, UserStatus } from "@prisma/client";
 import { hash } from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -10,7 +10,8 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { canDelegateGymPermissions } from "@/lib/auth/policy";
 import { prisma } from "@/lib/prisma";
 import { parseRupeesToPaise } from "@/lib/operations/money";
-import { addCalendarDays, dateOnlyInTimeZone } from "@/lib/operations/dates";
+import { addCalendarDays, dateOnlyInTimeZone, localDateTimeToUtc } from "@/lib/operations/dates";
+import { getClassBookingStatus } from "@/lib/operations/classes";
 
 export type ActionState = {
   ok: boolean;
@@ -518,4 +519,359 @@ export async function recordPaymentAction(
   revalidatePath("/owner");
   revalidatePath("/owner/payments");
   return { ok: true, message: "Payment entry recorded. This records a staff-entered payment; no gateway was charged." };
+}
+
+
+const attendanceSchema = z.object({
+  memberId: z.string().uuid(),
+  note: z.string().trim().max(300).optional(),
+});
+
+export async function recordAttendanceAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const context = await ownerContext("attendance.manage");
+  if ("error" in context) return { ok: false, message: context.error };
+
+  const parsed = attendanceSchema.safeParse({
+    memberId: readText(formData, "memberId"),
+    note: readText(formData, "note") || undefined,
+  });
+  if (!parsed.success) return { ok: false, message: "Choose a valid member." };
+
+  const timeZone = context.user.gym?.timezone ?? "Asia/Kolkata";
+  const today = dateOnlyInTimeZone(new Date(), timeZone);
+  const todayDate = new Date(`${today}T00:00:00.000Z`);
+  const dayAnchor = todayDate.getTime();
+  const rangeStart = new Date(dayAnchor - 24 * 60 * 60 * 1000);
+  const rangeEnd = new Date(dayAnchor + 48 * 60 * 60 * 1000);
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const lockedMember = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT "id" FROM "users"
+        WHERE "id" = ${parsed.data.memberId}::uuid
+          AND "gym_id" = ${context.gymId}::uuid
+        FOR UPDATE
+      `;
+      if (!lockedMember.length) throw new Error("MEMBER_NOT_FOUND");
+
+      const member = await tx.user.findFirst({
+        where: {
+          id: parsed.data.memberId,
+          gymId: context.gymId,
+          role: Role.MEMBER,
+          status: UserStatus.ACTIVE,
+        },
+        select: { id: true },
+      });
+      if (!member) throw new Error("MEMBER_NOT_ACTIVE");
+
+      const activeMembership = await tx.membership.findFirst({
+        where: {
+          gymId: context.gymId,
+          memberId: member.id,
+          status: MembershipStatus.ACTIVE,
+          startDate: { lte: todayDate },
+          endDate: { gte: todayDate },
+        },
+        select: { id: true },
+      });
+      if (!activeMembership) throw new Error("NO_ACTIVE_MEMBERSHIP");
+
+      const sameDayRecords = await tx.attendance.findMany({
+        where: {
+          gymId: context.gymId,
+          memberId: member.id,
+          checkedInAt: { gte: rangeStart, lt: rangeEnd },
+        },
+        select: { checkedInAt: true },
+      });
+      if (sameDayRecords.some((item) => dateOnlyInTimeZone(item.checkedInAt, timeZone) === today)) {
+        throw new Error("ALREADY_CHECKED_IN");
+      }
+
+      const attendance = await tx.attendance.create({
+        data: {
+          gymId: context.gymId,
+          memberId: member.id,
+          recordedById: context.user.id,
+          method: AttendanceMethod.MANUAL,
+          idempotencyKey: randomUUID(),
+          note: parsed.data.note || null,
+        },
+        select: { id: true },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorId: context.user.id,
+          gymId: context.gymId,
+          event: "attendance.checked_in",
+          resourceType: "attendance",
+          resourceId: attendance.id,
+          metadata: { memberId: member.id, method: AttendanceMethod.MANUAL },
+        },
+      });
+    });
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "";
+    const messages: Record<string, string> = {
+      MEMBER_NOT_FOUND: "Member not found in your gym.",
+      MEMBER_NOT_ACTIVE: "Only active member accounts can be checked in.",
+      NO_ACTIVE_MEMBERSHIP: "This member does not have an active membership today.",
+      ALREADY_CHECKED_IN: "This member has already checked in today.",
+    };
+    return { ok: false, message: messages[reason] ?? "Attendance could not be recorded. Please retry." };
+  }
+
+  revalidatePath("/owner/attendance");
+  revalidatePath("/owner");
+  revalidatePath("/member");
+  return { ok: true, message: "Attendance recorded." };
+}
+
+const gymClassSchema = z.object({
+  name: z.string().trim().min(2).max(100),
+  description: z.string().trim().max(500).optional(),
+  startsAt: z.string().min(1).max(16),
+  endsAt: z.string().min(1).max(16),
+  capacity: z.coerce.number().int().min(1).max(200),
+});
+
+export async function createGymClassAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const context = await ownerContext("classes.manage");
+  if ("error" in context) return { ok: false, message: context.error };
+
+  const parsed = gymClassSchema.safeParse({
+    name: readText(formData, "name"),
+    description: readText(formData, "description") || undefined,
+    startsAt: readText(formData, "startsAt"),
+    endsAt: readText(formData, "endsAt"),
+    capacity: readText(formData, "capacity"),
+  });
+  if (!parsed.success) return { ok: false, message: "Enter a class name, valid schedule and capacity from 1 to 200." };
+
+  const timeZone = context.user.gym?.timezone ?? "Asia/Kolkata";
+  const startsAt = localDateTimeToUtc(parsed.data.startsAt, timeZone);
+  const endsAt = localDateTimeToUtc(parsed.data.endsAt, timeZone);
+  if (!startsAt || !endsAt || endsAt <= startsAt) {
+    return { ok: false, message: "Class times must be valid gym-local times and the end must be after the start." };
+  }
+  if (startsAt <= new Date()) {
+    return { ok: false, message: "A new class must be scheduled in the future." };
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const gymClass = await tx.gymClass.create({
+        data: {
+          gymId: context.gymId,
+          name: parsed.data.name,
+          description: parsed.data.description || null,
+          startsAt,
+          endsAt,
+          capacity: parsed.data.capacity,
+          isPublished: true,
+        },
+        select: { id: true },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorId: context.user.id,
+          gymId: context.gymId,
+          event: "class.created",
+          resourceType: "gym_class",
+          resourceId: gymClass.id,
+          metadata: { startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString(), capacity: parsed.data.capacity },
+        },
+      });
+    });
+  } catch {
+    return { ok: false, message: "Class could not be scheduled. Please retry." };
+  }
+
+  revalidatePath("/owner/classes");
+  revalidatePath("/member/classes");
+  return { ok: true, message: "Class scheduled and published for member booking." };
+}
+
+const classBookingSchema = z.object({ classId: z.string().uuid() });
+
+export async function bookGymClassAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const user = await getCurrentUser();
+  if (!user || user.role !== Role.MEMBER || !user.gymId) {
+    return { ok: false, message: "Sign in with an active member account to book a class." };
+  }
+
+  const parsed = classBookingSchema.safeParse({ classId: readText(formData, "classId") });
+  if (!parsed.success) return { ok: false, message: "Select a valid class." };
+
+  const timeZone = user.gym?.timezone ?? "Asia/Kolkata";
+  const today = dateOnlyInTimeZone(new Date(), timeZone);
+  const todayDate = new Date(`${today}T00:00:00.000Z`);
+  const membership = await prisma.membership.findFirst({
+    where: {
+      gymId: user.gymId,
+      memberId: user.id,
+      status: MembershipStatus.ACTIVE,
+      startDate: { lte: todayDate },
+      endDate: { gte: todayDate },
+    },
+    select: { id: true },
+  });
+  if (!membership) return { ok: false, message: "An active membership is required to book classes." };
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const lockedClass = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT "id" FROM "gym_classes"
+        WHERE "id" = ${parsed.data.classId}::uuid
+          AND "gym_id" = ${user.gymId}::uuid
+        FOR UPDATE
+      `;
+      if (!lockedClass.length) throw new Error("CLASS_NOT_FOUND");
+
+      const gymClass = await tx.gymClass.findFirst({
+        where: { id: parsed.data.classId, gymId: user.gymId, isPublished: true, startsAt: { gt: new Date() } },
+        select: { id: true, capacity: true },
+      });
+      if (!gymClass) throw new Error("CLASS_NOT_AVAILABLE");
+
+      const existing = await tx.classBooking.findUnique({
+        where: { classId_memberId: { classId: gymClass.id, memberId: user.id } },
+        select: { id: true, status: true },
+      });
+      if (existing && existing.status !== BookingStatus.CANCELLED) throw new Error("ALREADY_BOOKED");
+
+      const bookedCount = await tx.classBooking.count({
+        where: { classId: gymClass.id, status: BookingStatus.BOOKED },
+      });
+      const status = getClassBookingStatus(gymClass.capacity, bookedCount);
+      if (existing) {
+        await tx.classBooking.update({
+          where: { id: existing.id },
+          data: { status, createdAt: new Date() },
+        });
+      } else {
+        await tx.classBooking.create({
+          data: { gymId: user.gymId, classId: gymClass.id, memberId: user.id, status },
+        });
+      }
+
+      await tx.auditLog.create({
+        data: {
+          actorId: user.id,
+          gymId: user.gymId,
+          event: status === BookingStatus.BOOKED ? "class.booking_confirmed" : "class.waitlisted",
+          resourceType: "gym_class",
+          resourceId: gymClass.id,
+          metadata: { memberId: user.id },
+        },
+      });
+    });
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "";
+    const messages: Record<string, string> = {
+      CLASS_NOT_FOUND: "Class not found.",
+      CLASS_NOT_AVAILABLE: "This class is no longer open for booking.",
+      ALREADY_BOOKED: "You already have an active booking or waitlist entry for this class.",
+    };
+    return { ok: false, message: messages[reason] ?? "Class booking failed. Please retry." };
+  }
+
+  revalidatePath("/member/classes");
+  revalidatePath("/member");
+  return { ok: true, message: "Your class booking has been saved. Check the status below." };
+}
+
+export async function cancelGymClassBookingAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const user = await getCurrentUser();
+  if (!user || user.role !== Role.MEMBER || !user.gymId) {
+    return { ok: false, message: "Sign in with an active member account to manage bookings." };
+  }
+
+  const parsed = classBookingSchema.safeParse({ classId: readText(formData, "classId") });
+  if (!parsed.success) return { ok: false, message: "Select a valid class." };
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const lockedClass = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT "id" FROM "gym_classes"
+        WHERE "id" = ${parsed.data.classId}::uuid
+          AND "gym_id" = ${user.gymId}::uuid
+        FOR UPDATE
+      `;
+      if (!lockedClass.length) throw new Error("CLASS_NOT_FOUND");
+
+      const gymClass = await tx.gymClass.findFirst({
+        where: { id: parsed.data.classId, gymId: user.gymId, startsAt: { gt: new Date() } },
+        select: { id: true },
+      });
+      if (!gymClass) throw new Error("CLASS_ALREADY_STARTED");
+
+      const booking = await tx.classBooking.findUnique({
+        where: { classId_memberId: { classId: gymClass.id, memberId: user.id } },
+        select: { id: true, status: true },
+      });
+      if (!booking || ![BookingStatus.BOOKED, BookingStatus.WAITLISTED].includes(booking.status)) {
+        throw new Error("BOOKING_NOT_FOUND");
+      }
+
+      await tx.classBooking.update({ where: { id: booking.id }, data: { status: BookingStatus.CANCELLED } });
+
+      if (booking.status === BookingStatus.BOOKED) {
+        const nextInLine = await tx.classBooking.findFirst({
+          where: { gymId: user.gymId, classId: gymClass.id, status: BookingStatus.WAITLISTED },
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+          select: { id: true, memberId: true },
+        });
+        if (nextInLine) {
+          await tx.classBooking.update({ where: { id: nextInLine.id }, data: { status: BookingStatus.BOOKED } });
+          await tx.auditLog.create({
+            data: {
+              actorId: user.id,
+              gymId: user.gymId,
+              event: "class.waitlist_promoted",
+              resourceType: "class_booking",
+              resourceId: nextInLine.id,
+              metadata: { classId: gymClass.id, memberId: nextInLine.memberId },
+            },
+          });
+        }
+      }
+
+      await tx.auditLog.create({
+        data: {
+          actorId: user.id,
+          gymId: user.gymId,
+          event: "class.booking_cancelled",
+          resourceType: "class_booking",
+          resourceId: booking.id,
+          metadata: { classId: gymClass.id, previousStatus: booking.status },
+        },
+      });
+    });
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "";
+    const messages: Record<string, string> = {
+      CLASS_NOT_FOUND: "Class not found.",
+      CLASS_ALREADY_STARTED: "A class that has started can no longer be cancelled.",
+      BOOKING_NOT_FOUND: "No active booking was found for this class.",
+    };
+    return { ok: false, message: messages[reason] ?? "Booking could not be cancelled. Please retry." };
+  }
+
+  revalidatePath("/member/classes");
+  revalidatePath("/member");
+  return { ok: true, message: "Booking cancelled. Any released place has been offered to the earliest waitlisted member." };
 }
