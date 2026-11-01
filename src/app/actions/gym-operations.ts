@@ -12,10 +12,12 @@ import { prisma } from "@/lib/prisma";
 import { parseRupeesToPaise } from "@/lib/operations/money";
 import { addCalendarDays, dateOnlyInTimeZone, localDateTimeToUtc } from "@/lib/operations/dates";
 import { getClassBookingStatus } from "@/lib/operations/classes";
+import { createInvitationToken, hashInvitationToken, INVITATION_TTL_HOURS } from "@/lib/auth/invitations";
 
 export type ActionState = {
   ok: boolean;
   message: string;
+  invitationUrl?: string;
 };
 
 async function canDelegatePermissions(
@@ -57,6 +59,20 @@ function readText(formData: FormData, key: string): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function buildInvitationUrl(token: string): string {
+  const configuredUrl = process.env.APP_URL?.trim() || "http://localhost:3000";
+  const url = new URL(configuredUrl);
+  if (
+    !["http:", "https:"].includes(url.protocol) ||
+    (process.env.NODE_ENV === "production" && url.protocol !== "https:") ||
+    url.username ||
+    url.password
+  ) {
+    throw new Error("APP_URL must be a public HTTPS origin in production.");
+  }
+  return `${url.origin}/activate?token=${encodeURIComponent(token)}`;
+}
+
 const memberSchema = z.object({
   name: z.string().trim().min(2).max(100),
   email: z.string().trim().email().max(254).transform((value) => value.toLowerCase()),
@@ -80,8 +96,16 @@ export async function createMemberAction(
   const existing = await prisma.user.findUnique({ where: { email: parsed.data.email }, select: { id: true } });
   if (existing) return { ok: false, message: "An account with this email already exists." };
 
-  const temporarySecret = randomBytes(48).toString("base64url");
-  const passwordHash = await hash(temporarySecret, 12);
+  let invitationUrl: string;
+  let invitationToken: string;
+  try {
+    invitationToken = createInvitationToken();
+    invitationUrl = buildInvitationUrl(invitationToken);
+  } catch {
+    return { ok: false, message: "Invitation URL is not configured. Set APP_URL to the public application address before creating accounts." };
+  }
+  const passwordHash = await hash(randomBytes(48).toString("base64url"), 12);
+  const invitationExpiresAt = new Date(Date.now() + INVITATION_TTL_HOURS * 60 * 60 * 1000);
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -102,6 +126,15 @@ export async function createMemberAction(
           phone: parsed.data.phone || null,
         },
       });
+      await tx.accountInvitation.create({
+        data: {
+          userId: member.id,
+          gymId: context.gymId,
+          createdById: context.user.id,
+          tokenHash: hashInvitationToken(invitationToken),
+          expiresAt: invitationExpiresAt,
+        },
+      });
       await tx.auditLog.create({
         data: {
           actorId: context.user.id,
@@ -109,6 +142,7 @@ export async function createMemberAction(
           event: "member.invited",
           resourceType: "user",
           resourceId: member.id,
+          metadata: { invitationExpiresAt: invitationExpiresAt.toISOString() },
         },
       });
     });
@@ -118,7 +152,7 @@ export async function createMemberAction(
 
   revalidatePath("/owner");
   revalidatePath("/owner/members");
-  return { ok: true, message: "Member record created as INVITED. Account activation/invitation delivery is not enabled yet." };
+  return { ok: true, message: "Member created. Share this single-use activation link with the member; it expires in 48 hours.", invitationUrl };
 }
 
 export async function updateMemberStatusAction(
@@ -142,7 +176,7 @@ export async function updateMemberStatusAction(
 
   const nextStatus = statusText as UserStatus;
   if (member.status === UserStatus.INVITED && nextStatus === UserStatus.ACTIVE) {
-    return { ok: false, message: "Invited accounts cannot be activated until the secure invitation flow is implemented." };
+    return { ok: false, message: "Invited accounts must activate using their secure invitation link." };
   }
 
   await prisma.$transaction(async (tx) => {
@@ -192,7 +226,16 @@ export async function createStaffAction(
   const existing = await prisma.user.findUnique({ where: { email: parsed.data.email }, select: { id: true } });
   if (existing) return { ok: false, message: "An account with this email already exists." };
 
+  let invitationUrl: string;
+  let invitationToken: string;
+  try {
+    invitationToken = createInvitationToken();
+    invitationUrl = buildInvitationUrl(invitationToken);
+  } catch {
+    return { ok: false, message: "Invitation URL is not configured. Set APP_URL to the public application address before creating accounts." };
+  }
   const passwordHash = await hash(randomBytes(48).toString("base64url"), 12);
+  const invitationExpiresAt = new Date(Date.now() + INVITATION_TTL_HOURS * 60 * 60 * 1000);
   try {
     await prisma.$transaction(async (tx) => {
       const staff = await tx.user.create({
@@ -213,6 +256,15 @@ export async function createStaffAction(
           permission,
         })),
       });
+      await tx.accountInvitation.create({
+        data: {
+          userId: staff.id,
+          gymId: context.gymId,
+          createdById: context.user.id,
+          tokenHash: hashInvitationToken(invitationToken),
+          expiresAt: invitationExpiresAt,
+        },
+      });
       await tx.auditLog.create({
         data: {
           actorId: context.user.id,
@@ -220,7 +272,7 @@ export async function createStaffAction(
           event: "staff.invited",
           resourceType: "user",
           resourceId: staff.id,
-          metadata: { permissions: parsed.data.permissions },
+          metadata: { permissions: parsed.data.permissions, invitationExpiresAt: invitationExpiresAt.toISOString() },
         },
       });
     });
@@ -229,7 +281,7 @@ export async function createStaffAction(
   }
 
   revalidatePath("/owner/staff");
-  return { ok: true, message: "Staff account created as INVITED with the selected permissions. Login activation is not yet enabled." };
+  return { ok: true, message: "Staff account created. Share this single-use activation link with the staff member; it expires in 48 hours.", invitationUrl };
 }
 
 export async function updateStaffPermissionsAction(
@@ -874,4 +926,87 @@ export async function cancelGymClassBookingAction(
   revalidatePath("/member/classes");
   revalidatePath("/member");
   return { ok: true, message: "Booking cancelled. Any released place has been offered to the earliest waitlisted member." };
+}
+
+
+export async function issueAccountInvitationAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const targetId = readText(formData, "targetId");
+  const accountType = readText(formData, "accountType");
+  if (!z.string().uuid().safeParse(targetId).success || !["MEMBER", "STAFF"].includes(accountType)) {
+    return { ok: false, message: "Invalid invitation request." };
+  }
+
+  const context = await ownerContext(accountType === "MEMBER" ? "members.write" : "staff.manage");
+  if ("error" in context) return { ok: false, message: context.error };
+
+  const userWhere = accountType === "MEMBER"
+    ? { id: targetId, gymId: context.gymId, role: Role.MEMBER }
+    : { id: targetId, gymId: context.gymId, role: Role.OWNER, isGymOwner: false };
+  const target = await prisma.user.findFirst({
+    where: userWhere,
+    select: { id: true, status: true },
+  });
+  if (!target || target.status !== UserStatus.INVITED) {
+    return { ok: false, message: "Only an invitation-pending account in your gym can receive a new link." };
+  }
+
+  let invitationUrl: string;
+  let invitationToken: string;
+  try {
+    invitationToken = createInvitationToken();
+    invitationUrl = buildInvitationUrl(invitationToken);
+  } catch {
+    return { ok: false, message: "Invitation URL is not configured. Set APP_URL to the public application address." };
+  }
+
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + INVITATION_TTL_HOURS * 60 * 60 * 1000);
+  try {
+    await prisma.$transaction(async (tx) => {
+      const locked = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT "id" FROM "users"
+        WHERE "id" = ${target.id}::uuid AND "gymId" = ${context.gymId}::uuid
+        FOR UPDATE
+      `;
+      if (!locked.length) throw new Error("INVITATION_TARGET_MISSING");
+
+      const current = await tx.user.findFirst({
+        where: { ...userWhere, status: UserStatus.INVITED },
+        select: { id: true },
+      });
+      if (!current) throw new Error("INVITATION_TARGET_CHANGED");
+
+      await tx.accountInvitation.updateMany({
+        where: { userId: target.id, consumedAt: null, revokedAt: null },
+        data: { revokedAt: now },
+      });
+      await tx.accountInvitation.create({
+        data: {
+          userId: target.id,
+          gymId: context.gymId,
+          createdById: context.user.id,
+          tokenHash: hashInvitationToken(invitationToken),
+          expiresAt,
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorId: context.user.id,
+          gymId: context.gymId,
+          event: "account_invitation.issued",
+          resourceType: "user",
+          resourceId: target.id,
+          metadata: { accountType, expiresAt: expiresAt.toISOString() },
+        },
+      });
+    });
+  } catch {
+    return { ok: false, message: "A new invitation could not be generated. Refresh and try again." };
+  }
+
+  revalidatePath(accountType === "MEMBER" ? "/owner/members" : "/owner/staff");
+  return { ok: true, message: "New 48-hour activation link generated. Previous unused links are revoked; share this link only with the intended recipient.", invitationUrl };
 }
