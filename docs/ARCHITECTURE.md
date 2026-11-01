@@ -24,6 +24,12 @@ Top-level application roles are `SUPER_ADMIN`, `OWNER` and `MEMBER`.
 
 The first deployment is a single gym, but gym-scoped records carry a `gymId`. Server queries must derive that scope from the authenticated user, not a client-supplied gym ID.
 
+## Domain boundaries
+
+The first milestone keeps server-side business logic inside the Next.js application to reduce operational complexity; there is no separate backend service. Route handlers and server actions should call server-only domain/auth modules. Keep domain logic independent of UI components and persistence adapters.
+
+Planned domains: identity/access, gym settings, staff, members, memberships, finance ledger, attendance, classes/bookings, workouts, nutrition, progress, media, CMS, notifications and audit. Use PostgreSQL transactions for capacity-limited bookings and financial writes. Keep waitlist membership in normalized booking rows, not serialized arrays. Never expose private data through public CMS/media endpoints.
+
 ## Data model baseline
 
 The initial schema includes gyms, users, sessions, member profiles, staff permissions, membership plans, memberships, attendance, gym classes, class bookings, payment ledger entries and audit logs. Money is stored as integer paise. Payment entries do not store card details and are not connected to a gateway.
