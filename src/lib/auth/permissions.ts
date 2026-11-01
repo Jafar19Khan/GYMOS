@@ -25,6 +25,8 @@ export const GYM_PERMISSIONS = [
   "reports.read",
   "cms.manage",
   "media.manage",
+  "fitness.read",
+  "fitness.manage",
   "settings.manage",
 ] as const;
 
