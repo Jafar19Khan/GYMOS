@@ -3,6 +3,7 @@ import AppShell from "@/app/components/app-shell";
 import { requireRole } from "@/lib/auth/guards";
 import { hasGymPermission } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/prisma";
+import { dateOnlyInTimeZone } from "@/lib/operations/dates";
 
 function Metric({ label, value, detail }: { label: string; value: number; detail: string }) {
   return <article className="surface rounded-2xl p-6">
@@ -32,10 +33,12 @@ export default async function OwnerDashboard() {
   }
 
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const today = dateOnlyInTimeZone(new Date(), user.gym?.timezone ?? "Asia/Kolkata");
+  const todayDate = new Date(`${today}T00:00:00.000Z`);
   const [members, activeMembers, activeMemberships, recentAttendance, paymentRecords] = await Promise.all([
     prisma.user.count({ where: { gymId: user.gymId, role: Role.MEMBER } }),
     prisma.user.count({ where: { gymId: user.gymId, role: Role.MEMBER, status: UserStatus.ACTIVE } }),
-    prisma.membership.count({ where: { gymId: user.gymId, status: "ACTIVE", endDate: { gte: new Date() } } }),
+    prisma.membership.count({ where: { gymId: user.gymId, status: "ACTIVE", endDate: { gte: todayDate } } }),
     prisma.attendance.count({ where: { gymId: user.gymId, checkedInAt: { gte: since } } }),
     prisma.payment.count({ where: { gymId: user.gymId } }),
   ]);
