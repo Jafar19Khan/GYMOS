@@ -38,7 +38,7 @@ Requirements: Docker Desktop, Docker Compose v2, Node.js 22 and npm 10+.
 3. Run `docker compose -f docker/compose.yaml up --build -d`. The web container waits for PostgreSQL, applies committed Prisma migrations, then starts Next.js.
 4. To create your first owner account, fill `BOOTSTRAP_OWNER_EMAIL` and `BOOTSTRAP_OWNER_PASSWORD` in `.env`. Optionally set the Super Admin values too.
 5. On your host, run `npm install` and then `npm run db:seed`. The seed only creates accounts when both email and password are explicitly supplied; it never creates a default password.
-6. Open http://localhost:3000. Sign in at /login.
+6. Open http://localhost:3000. Sign in at /login. Check `/api/health` and `/api/ready` to confirm service and database readiness.
 
 To run Next.js directly on your host instead of in Docker, start only the database with `docker compose -f docker/compose.yaml up -d db`, then use `npm install`, `npm run db:generate`, `npm run db:migrate` and `npm run dev`.
 
@@ -49,11 +49,12 @@ The Owner workspace links to Members, Staff, Plans, Payments, Attendance and Cla
 - Member and staff records are created in `INVITED` state with a single-use activation link. Links contain a random 256-bit token, only its SHA-256 hash is stored, and links expire after 48 hours. Re-issuing a link revokes previous unused links. Owners must copy and send links through a trusted channel; provider-backed email is not configured.
 - Invitees set their own password (12+ characters); the password is bcrypt-hashed. Activation and token consumption happen in one transaction, and staff permissions remain explicitly granted.
 - Authorized staff can edit member contact and emergency-contact details. Email changes revoke active sessions and invalidate old links for invited members.
+- The member directory supports search, pagination, permission-checked CSV export and anonymizing archive. Archived member profiles are removed from active lists while ledger and membership history are retained.
 - Staff managers can suspend/reactivate staff accounts. Suspension revokes active sessions; staff cannot suspend themselves or bypass invitation activation.
 - Membership plans store duration in days and price as integer paise. Membership assignment checks date overlap and serializes assignments for the same member.
 - Attendance supports manual check-in for active members with a valid membership, once per gym-local day.
 - Classes can be scheduled in the gym timezone. Active members can book; capacity is serialized in a database transaction and cancellations promote the oldest waitlisted member first.
-- Payments are staff-entered ledger `CHARGE` entries only. No payment gateway is connected; refunds, adjustments and reconciled reports are not enabled yet.
+- The payment ledger supports manual charges, linked refunds, signed adjustments, printable receipt records and date-range reconciliation. No payment gateway is connected.
 
 ## Authentication and security
 
@@ -71,6 +72,6 @@ The AWS account and Mumbai-region usage must be reviewed against current account
 
 Implemented: public landing page, local container setup, PostgreSQL schema/migrations and bootstrap seed, session login/logout, role routing, role-protected dashboards, secure member/staff invitation and password activation, staff permission maintenance, membership plans and assignment, manual attendance, class scheduling and FIFO bookings/waitlist, staff-entered payment entries, audit events, and CI/security workflows.
 
-Still pending: invitation email delivery, member search/pagination/export/deletion lifecycle, refund/adjustment ledger flows, QR attendance, workouts, diet/progress, public CMS/media, MFA/rate limits, comprehensive integration/E2E tests, backup/restore drills and deployment. This project is not production-ready yet.
+Still pending: invitation email delivery, QR attendance, workout/diet/progress modules, configurable public CMS/media, MFA/account recovery, login rate limiting, complete audit review/retention UI, automated E2E/security integration coverage, external monitoring/alerting, and cloud deployment approval. This project is not production-ready yet.
 
-See [architecture](docs/ARCHITECTURE.md), [security](docs/SECURITY.md), [roadmap](docs/ROADMAP.md), [design system](docs/DESIGN-SYSTEM.md) and [local operations](docs/OPERATIONS.md).
+For Windows run, quality checks, backup and restore see [local operations](docs/OPERATIONS.md). Also see [architecture](docs/ARCHITECTURE.md), [security](docs/SECURITY.md), [roadmap](docs/ROADMAP.md) and [design system](docs/DESIGN-SYSTEM.md).
