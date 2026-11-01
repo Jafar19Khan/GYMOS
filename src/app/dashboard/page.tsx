@@ -1,6 +1,6 @@
-import { Role } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/session";
+import { getDashboardPath } from "@/lib/auth/role-routing";
 
 export default async function DashboardRouter() {
   const user = await getCurrentUser();
@@ -9,7 +9,5 @@ export default async function DashboardRouter() {
     redirect("/login");
   }
 
-  if (user.role === Role.SUPER_ADMIN) redirect("/super-admin");
-  if (user.role === Role.OWNER) redirect("/owner");
-  redirect("/member");
+  redirect(getDashboardPath(user.role));
 }
