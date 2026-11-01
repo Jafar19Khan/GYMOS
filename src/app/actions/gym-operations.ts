@@ -508,7 +508,7 @@ export async function updateStaffStatusAction(
     return { ok: false, message: "Invalid staff status request." };
   }
 
-  const nextStatus = statusText as UserStatus;
+  const nextStatus = statusText as "ACTIVE" | "SUSPENDED";
   try {
     await prisma.$transaction(async (tx) => {
       const lockedStaff = await tx.$queryRaw<Array<{ id: string }>>`
