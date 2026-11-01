@@ -1,6 +1,7 @@
 import "server-only";
 
 import { Role } from "@prisma/client";
+import { isGymPermissionGranted } from "@/lib/auth/policy";
 import { prisma } from "@/lib/prisma";
 
 export const GYM_PERMISSIONS = [
@@ -44,7 +45,7 @@ export async function hasGymPermission(
   }
 
   if (user.isGymOwner) {
-    return true;
+    return isGymPermissionGranted(user.role, true, [], permission);
   }
 
   const grant = await prisma.staffPermission.findFirst({
@@ -52,7 +53,7 @@ export async function hasGymPermission(
     select: { id: true },
   });
 
-  return Boolean(grant);
+  return isGymPermissionGranted(user.role, false, grant ? [permission] : [], permission);
 }
 
 export async function requireGymPermission(
