@@ -1728,16 +1728,30 @@ export async function recordFitnessProgressAction(
     return { ok: false, message: "Measurement is outside the supported range." };
   }
 
-  await prisma.progressEntry.create({
-    data: {
-      gymId: user.gymId,
-      memberId: user.id,
-      recordedById: user.id,
-      metric: parsed.data.metric,
-      value: parsed.data.value,
-      unit: units[parsed.data.metric],
-      note: parsed.data.note || null,
-    },
+  const gymId = user.gymId;
+  await prisma.$transaction(async (tx) => {
+    const entry = await tx.progressEntry.create({
+      data: {
+        gymId,
+        memberId: user.id,
+        recordedById: user.id,
+        metric: parsed.data.metric,
+        value: parsed.data.value,
+        unit: units[parsed.data.metric],
+        note: parsed.data.note || null,
+      },
+      select: { id: true },
+    });
+    await tx.auditLog.create({
+      data: {
+        actorId: user.id,
+        gymId,
+        event: "fitness.progress_recorded",
+        resourceType: "progress_entry",
+        resourceId: entry.id,
+        metadata: { metric: parsed.data.metric, unit: units[parsed.data.metric] },
+      },
+    });
   });
   revalidatePath("/member/fitness");
   revalidatePath("/member");
@@ -1765,26 +1779,28 @@ export async function createAnnouncementAction(
   });
   if (!parsed.success) return { ok: false, message: "Enter a title, message and audience." };
 
-  const announcement = await prisma.announcement.create({
-    data: {
-      gymId: context.gymId,
-      createdById: context.user.id,
-      title: parsed.data.title,
-      body: parsed.data.body,
-      audience: parsed.data.audience,
-      publishedAt: new Date(),
-    },
-    select: { id: true },
-  });
-  await prisma.auditLog.create({
-    data: {
-      actorId: context.user.id,
-      gymId: context.gymId,
-      event: "announcement.published",
-      resourceType: "announcement",
-      resourceId: announcement.id,
-      metadata: { audience: parsed.data.audience },
-    },
+  await prisma.$transaction(async (tx) => {
+    const announcement = await tx.announcement.create({
+      data: {
+        gymId: context.gymId,
+        createdById: context.user.id,
+        title: parsed.data.title,
+        body: parsed.data.body,
+        audience: parsed.data.audience,
+        publishedAt: new Date(),
+      },
+      select: { id: true },
+    });
+    await tx.auditLog.create({
+      data: {
+        actorId: context.user.id,
+        gymId: context.gymId,
+        event: "announcement.published",
+        resourceType: "announcement",
+        resourceId: announcement.id,
+        metadata: { audience: parsed.data.audience },
+      },
+    });
   });
 
   revalidatePath("/owner/announcements");
@@ -1822,19 +1838,23 @@ export async function updateGymWebsiteAction(
   if (!parsed.success) return { ok: false, message: "Enter valid website content and contact information." };
 
   const isPublished = readText(formData, "isPublished") === "on";
-  await prisma.gymWebsite.upsert({
-    where: { gymId: context.gymId },
-    update: { ...parsed.data, isPublished },
-    create: { gymId: context.gymId, ...parsed.data, isPublished },
-  });
-  await prisma.auditLog.create({
-    data: {
-      actorId: context.user.id,
-      gymId: context.gymId,
-      event: isPublished ? "website.published" : "website.updated",
-      resourceType: "gym_website",
-      metadata: { isPublished },
-    },
+  await prisma.$transaction(async (tx) => {
+    const website = await tx.gymWebsite.upsert({
+      where: { gymId: context.gymId },
+      update: { ...parsed.data, isPublished },
+      create: { gymId: context.gymId, ...parsed.data, isPublished },
+      select: { id: true },
+    });
+    await tx.auditLog.create({
+      data: {
+        actorId: context.user.id,
+        gymId: context.gymId,
+        event: isPublished ? "website.published" : "website.updated",
+        resourceType: "gym_website",
+        resourceId: website.id,
+        metadata: { isPublished },
+      },
+    });
   });
 
   revalidatePath("/owner/website");

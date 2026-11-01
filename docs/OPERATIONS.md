@@ -23,7 +23,7 @@ GYMOS is intended to be tested locally with Docker Compose before any cloud depl
 5. Build and start the application:
 
    ```powershell
-   docker compose -f docker/compose.yaml up --build -d
+   docker compose -f docker/compose.yaml up --build -d --wait --wait-timeout 180
    ```
 
 6. Create the owner account. On the host, from the repository root:

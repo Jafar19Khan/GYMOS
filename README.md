@@ -35,7 +35,7 @@ Requirements: Docker Desktop, Docker Compose v2, Node.js 22 and npm 10+.
 
 1. Copy `.env.example` to `.env`.
 2. Set a strong local `POSTGRES_PASSWORD`; use the same password in both `DATABASE_URL` and `DATABASE_URL_DOCKER`. Keep the host URL pointed at `localhost` and the Docker URL pointed at `db`.
-3. Run `docker compose -f docker/compose.yaml up --build -d`. The web container waits for PostgreSQL, applies committed Prisma migrations, then starts Next.js.
+3. Run `docker compose -f docker/compose.yaml up --build -d --wait --wait-timeout 180`. The web container waits for PostgreSQL, applies committed Prisma migrations, then starts Next.js.
 4. To create your first owner account, fill `BOOTSTRAP_OWNER_EMAIL` and `BOOTSTRAP_OWNER_PASSWORD` in `.env`. Optionally set the Super Admin values too.
 5. On your host, run `npm install` and then `npm run db:seed`. The seed only creates accounts when both email and password are explicitly supplied; it never creates a default password.
 6. Open http://localhost:3000. Sign in at /login. Check `/api/health` and `/api/ready` to confirm service and database readiness.

@@ -1,5 +1,6 @@
 services:
   web:
+    image: ${GYMOS_IMAGE:-gymos:local}
     build:
       context: ..
       dockerfile: docker/Dockerfile
@@ -12,7 +13,7 @@ services:
       ATTENDANCE_QR_SECRET: ${ATTENDANCE_QR_SECRET:-}
       DATABASE_URL: ${DATABASE_URL_DOCKER:-postgresql://gymos:local-gymos-password@db:5432/gymos?schema=public}
     ports:
-      - "3000:3000"
+      - "${WEB_HOST_PORT:-3000}:3000"
     depends_on:
       db:
         condition: service_healthy
@@ -31,7 +32,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-gymos}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-gymos-password}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
     volumes:
       - gymos-postgres:/var/lib/postgresql/data
     healthcheck:

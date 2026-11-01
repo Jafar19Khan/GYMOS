@@ -33,6 +33,11 @@ jobs:
           --health-retries 10
     env:
       DATABASE_URL: postgresql://gymos:ci-only-password@localhost:5432/gymos?schema=public
+      GYMOS_IMAGE: gymos:ci
+      WEB_HOST_PORT: "3000"
+      POSTGRES_HOST_PORT: "55432"
+      POSTGRES_PASSWORD: ci-only-compose-password
+      DATABASE_URL_DOCKER: postgresql://gymos:ci-only-compose-password@db:5432/gymos?schema=public
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -52,3 +57,12 @@ jobs:
       - run: npm run build
       - name: Build production Docker image
         run: docker build --file docker/Dockerfile --tag gymos:ci .
+      - name: Smoke-test production Compose startup
+        run: docker compose --file docker/compose.yaml up --no-build --detach --wait --wait-timeout 180
+      - name: Check service health and database readiness
+        run: |
+          curl --fail --silent --show-error http://127.0.0.1:3000/api/health
+          curl --fail --silent --show-error http://127.0.0.1:3000/api/ready
+      - name: Tear down Compose smoke test
+        if: always()
+        run: docker compose --file docker/compose.yaml down -v
