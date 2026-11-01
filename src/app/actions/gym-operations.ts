@@ -42,16 +42,17 @@ async function canDelegatePermissions(
 async function ownerContext(permission: (typeof GYM_PERMISSIONS)[number]) {
   const user = await getCurrentUser();
   if (!user || user.role !== Role.OWNER || !user.gymId) {
-    return { error: "Sign in with an owner or permitted staff account." } as const;
+    return { ok: false as const, error: "Sign in with an owner or permitted staff account." };
   }
 
+  const gymId = user.gymId;
   try {
-    await requireGymPermission(user.id, user.gymId, permission);
+    await requireGymPermission(user.id, gymId, permission);
   } catch {
-    return { error: "You do not have permission to perform this action." } as const;
+    return { ok: false as const, error: "You do not have permission to perform this action." };
   }
 
-  return { user, gymId: user.gymId } as const;
+  return { ok: true as const, user, gymId };
 }
 
 function readText(formData: FormData, key: string): string {
@@ -86,7 +87,7 @@ export async function createMemberAction(
   formData: FormData,
 ): Promise<ActionState> {
   const context = await ownerContext("members.write");
-  if ("error" in context) return { ok: false, message: context.error };
+  if (!context.ok) return { ok: false, message: context.error };
 
   const parsed = memberSchema.safeParse({
     name: readText(formData, "name"),
@@ -174,7 +175,7 @@ export async function updateMemberProfileAction(
   formData: FormData,
 ): Promise<ActionState> {
   const context = await ownerContext("members.write");
-  if ("error" in context) return { ok: false, message: context.error };
+  if (!context.ok) return { ok: false, message: context.error };
 
   const parsed = memberProfileSchema.safeParse({
     memberId: readText(formData, "memberId"),
@@ -288,7 +289,7 @@ export async function updateMemberStatusAction(
   formData: FormData,
 ): Promise<ActionState> {
   const context = await ownerContext("members.suspend");
-  if ("error" in context) return { ok: false, message: context.error };
+  if (!context.ok) return { ok: false, message: context.error };
 
   const memberId = readText(formData, "memberId");
   const statusText = readText(formData, "status");
@@ -336,7 +337,7 @@ export async function archiveMemberAction(
   formData: FormData,
 ): Promise<ActionState> {
   const context = await ownerContext("members.delete");
-  if ("error" in context) return { ok: false, message: context.error };
+  if (!context.ok) return { ok: false, message: context.error };
 
   const memberId = readText(formData, "memberId");
   if (!z.string().uuid().safeParse(memberId).success) {
@@ -419,7 +420,7 @@ export async function createStaffAction(
   formData: FormData,
 ): Promise<ActionState> {
   const context = await ownerContext("staff.manage");
-  if ("error" in context) return { ok: false, message: context.error };
+  if (!context.ok) return { ok: false, message: context.error };
 
   const parsed = staffSchema.safeParse({
     name: readText(formData, "name"),
@@ -499,7 +500,7 @@ export async function updateStaffStatusAction(
   formData: FormData,
 ): Promise<ActionState> {
   const context = await ownerContext("staff.manage");
-  if ("error" in context) return { ok: false, message: context.error };
+  if (!context.ok) return { ok: false, message: context.error };
 
   const staffId = readText(formData, "staffId");
   const statusText = readText(formData, "status");
@@ -568,7 +569,7 @@ export async function updateStaffPermissionsAction(
   formData: FormData,
 ): Promise<ActionState> {
   const context = await ownerContext("staff.manage");
-  if ("error" in context) return { ok: false, message: context.error };
+  if (!context.ok) return { ok: false, message: context.error };
 
   const staffId = readText(formData, "staffId");
   const permissions = formData.getAll("permissions").filter((value): value is string => typeof value === "string");
@@ -620,7 +621,7 @@ export async function createMembershipPlanAction(
   formData: FormData,
 ): Promise<ActionState> {
   const context = await ownerContext("memberships.manage");
-  if ("error" in context) return { ok: false, message: context.error };
+  if (!context.ok) return { ok: false, message: context.error };
 
   const parsed = planSchema.safeParse({
     name: readText(formData, "name"),
@@ -669,7 +670,7 @@ export async function setMembershipPlanActiveAction(
   formData: FormData,
 ): Promise<ActionState> {
   const context = await ownerContext("memberships.manage");
-  if ("error" in context) return { ok: false, message: context.error };
+  if (!context.ok) return { ok: false, message: context.error };
   const planId = readText(formData, "planId");
   const active = readText(formData, "active") === "true";
   if (!planId) return { ok: false, message: "Invalid plan." };
@@ -705,7 +706,7 @@ export async function assignMembershipAction(
   formData: FormData,
 ): Promise<ActionState> {
   const context = await ownerContext("memberships.manage");
-  if ("error" in context) return { ok: false, message: context.error };
+  if (!context.ok) return { ok: false, message: context.error };
 
   const parsed = membershipSchema.safeParse({
     memberId: readText(formData, "memberId"),
@@ -800,7 +801,7 @@ export async function recordPaymentAction(
   formData: FormData,
 ): Promise<ActionState> {
   const context = await ownerContext("finance.write");
-  if ("error" in context) return { ok: false, message: context.error };
+  if (!context.ok) return { ok: false, message: context.error };
 
   const parsed = paymentSchema.safeParse({
     memberId: readText(formData, "memberId"),
@@ -864,7 +865,7 @@ export async function recordAttendanceAction(
   formData: FormData,
 ): Promise<ActionState> {
   const context = await ownerContext("attendance.manage");
-  if ("error" in context) return { ok: false, message: context.error };
+  if (!context.ok) return { ok: false, message: context.error };
 
   const parsed = attendanceSchema.safeParse({
     memberId: readText(formData, "memberId"),
@@ -976,7 +977,7 @@ export async function createGymClassAction(
   formData: FormData,
 ): Promise<ActionState> {
   const context = await ownerContext("classes.manage");
-  if ("error" in context) return { ok: false, message: context.error };
+  if (!context.ok) return { ok: false, message: context.error };
 
   const parsed = gymClassSchema.safeParse({
     name: readText(formData, "name"),
@@ -1038,19 +1039,20 @@ export async function bookGymClassAction(
   formData: FormData,
 ): Promise<ActionState> {
   const user = await getCurrentUser();
-  if (!user || user.role !== Role.MEMBER || !user.gymId) {
+  if (!user || user.role !== Role.MEMBER || !gymId) {
     return { ok: false, message: "Sign in with an active member account to book a class." };
   }
 
   const parsed = classBookingSchema.safeParse({ classId: readText(formData, "classId") });
   if (!parsed.success) return { ok: false, message: "Select a valid class." };
 
+  const gymId = user.gymId;
   const timeZone = user.gym?.timezone ?? "Asia/Kolkata";
   const today = dateOnlyInTimeZone(new Date(), timeZone);
   const todayDate = new Date(`${today}T00:00:00.000Z`);
   const membership = await prisma.membership.findFirst({
     where: {
-      gymId: user.gymId,
+      gymId: gymId,
       memberId: user.id,
       status: MembershipStatus.ACTIVE,
       startDate: { lte: todayDate },
@@ -1065,13 +1067,13 @@ export async function bookGymClassAction(
       const lockedClass = await tx.$queryRaw<Array<{ id: string }>>`
         SELECT "id" FROM "gym_classes"
         WHERE "id" = ${parsed.data.classId}::uuid
-          AND "gymId" = ${user.gymId}::uuid
+          AND "gymId" = ${gymId}::uuid
         FOR UPDATE
       `;
       if (!lockedClass.length) throw new Error("CLASS_NOT_FOUND");
 
       const gymClass = await tx.gymClass.findFirst({
-        where: { id: parsed.data.classId, gymId: user.gymId, isPublished: true, startsAt: { gt: new Date() } },
+        where: { id: parsed.data.classId, gymId: gymId, isPublished: true, startsAt: { gt: new Date() } },
         select: { id: true, capacity: true },
       });
       if (!gymClass) throw new Error("CLASS_NOT_AVAILABLE");
@@ -1093,14 +1095,14 @@ export async function bookGymClassAction(
         });
       } else {
         await tx.classBooking.create({
-          data: { gymId: user.gymId, classId: gymClass.id, memberId: user.id, status },
+          data: { gymId: gymId, classId: gymClass.id, memberId: user.id, status },
         });
       }
 
       await tx.auditLog.create({
         data: {
           actorId: user.id,
-          gymId: user.gymId,
+          gymId: gymId,
           event: status === BookingStatus.BOOKED ? "class.booking_confirmed" : "class.waitlisted",
           resourceType: "gym_class",
           resourceId: gymClass.id,
@@ -1128,10 +1130,11 @@ export async function cancelGymClassBookingAction(
   formData: FormData,
 ): Promise<ActionState> {
   const user = await getCurrentUser();
-  if (!user || user.role !== Role.MEMBER || !user.gymId) {
+  if (!user || user.role !== Role.MEMBER || !gymId) {
     return { ok: false, message: "Sign in with an active member account to manage bookings." };
   }
 
+  const gymId = user.gymId;
   const parsed = classBookingSchema.safeParse({ classId: readText(formData, "classId") });
   if (!parsed.success) return { ok: false, message: "Select a valid class." };
 
@@ -1140,13 +1143,13 @@ export async function cancelGymClassBookingAction(
       const lockedClass = await tx.$queryRaw<Array<{ id: string }>>`
         SELECT "id" FROM "gym_classes"
         WHERE "id" = ${parsed.data.classId}::uuid
-          AND "gymId" = ${user.gymId}::uuid
+          AND "gymId" = ${gymId}::uuid
         FOR UPDATE
       `;
       if (!lockedClass.length) throw new Error("CLASS_NOT_FOUND");
 
       const gymClass = await tx.gymClass.findFirst({
-        where: { id: parsed.data.classId, gymId: user.gymId, startsAt: { gt: new Date() } },
+        where: { id: parsed.data.classId, gymId: gymId, startsAt: { gt: new Date() } },
         select: { id: true },
       });
       if (!gymClass) throw new Error("CLASS_ALREADY_STARTED");
@@ -1155,7 +1158,7 @@ export async function cancelGymClassBookingAction(
         where: { classId_memberId: { classId: gymClass.id, memberId: user.id } },
         select: { id: true, status: true },
       });
-      if (!booking || ![BookingStatus.BOOKED, BookingStatus.WAITLISTED].includes(booking.status)) {
+      if (!booking || (booking.status !== BookingStatus.BOOKED && booking.status !== BookingStatus.WAITLISTED)) {
         throw new Error("BOOKING_NOT_FOUND");
       }
 
@@ -1163,7 +1166,7 @@ export async function cancelGymClassBookingAction(
 
       if (booking.status === BookingStatus.BOOKED) {
         const nextInLine = await tx.classBooking.findFirst({
-          where: { gymId: user.gymId, classId: gymClass.id, status: BookingStatus.WAITLISTED },
+          where: { gymId: gymId, classId: gymClass.id, status: BookingStatus.WAITLISTED },
           orderBy: [{ createdAt: "asc" }, { id: "asc" }],
           select: { id: true, memberId: true },
         });
@@ -1172,7 +1175,7 @@ export async function cancelGymClassBookingAction(
           await tx.auditLog.create({
             data: {
               actorId: user.id,
-              gymId: user.gymId,
+              gymId: gymId,
               event: "class.waitlist_promoted",
               resourceType: "class_booking",
               resourceId: nextInLine.id,
@@ -1185,7 +1188,7 @@ export async function cancelGymClassBookingAction(
       await tx.auditLog.create({
         data: {
           actorId: user.id,
-          gymId: user.gymId,
+          gymId: gymId,
           event: "class.booking_cancelled",
           resourceType: "class_booking",
           resourceId: booking.id,
@@ -1220,7 +1223,7 @@ export async function issueAccountInvitationAction(
   }
 
   const context = await ownerContext(accountType === "MEMBER" ? "members.write" : "staff.manage");
-  if ("error" in context) return { ok: false, message: context.error };
+  if (!context.ok) return { ok: false, message: context.error };
 
   const userWhere = accountType === "MEMBER"
     ? { id: targetId, gymId: context.gymId, role: Role.MEMBER }
@@ -1304,7 +1307,7 @@ export async function recordRefundAction(
   formData: FormData,
 ): Promise<ActionState> {
   const context = await ownerContext("finance.refund");
-  if ("error" in context) return { ok: false, message: context.error };
+  if (!context.ok) return { ok: false, message: context.error };
 
   const parsed = ledgerCorrectionSchema.extend({
     method: z.nativeEnum(PaymentMethod),
@@ -1400,7 +1403,7 @@ export async function recordAdjustmentAction(
   formData: FormData,
 ): Promise<ActionState> {
   const context = await ownerContext("finance.refund");
-  if ("error" in context) return { ok: false, message: context.error };
+  if (!context.ok) return { ok: false, message: context.error };
 
   const parsed = ledgerCorrectionSchema.extend({
     direction: z.enum(["INCREASE", "DECREASE"]),
@@ -1507,7 +1510,7 @@ export async function createWorkoutPlanAction(
   formData: FormData,
 ): Promise<ActionState> {
   const context = await ownerContext("fitness.manage");
-  if ("error" in context) return { ok: false, message: context.error };
+  if (!context.ok) return { ok: false, message: context.error };
 
   const parsed = workoutPlanSchema.safeParse({
     memberId: readText(formData, "memberId"),
@@ -1572,7 +1575,7 @@ export async function createDietPlanAction(
   formData: FormData,
 ): Promise<ActionState> {
   const context = await ownerContext("fitness.manage");
-  if ("error" in context) return { ok: false, message: context.error };
+  if (!context.ok) return { ok: false, message: context.error };
 
   const parsed = dietPlanSchema.safeParse({
     memberId: readText(formData, "memberId"),
@@ -1754,7 +1757,7 @@ export async function createAnnouncementAction(
   formData: FormData,
 ): Promise<ActionState> {
   const context = await ownerContext("cms.manage");
-  if ("error" in context) return { ok: false, message: context.error };
+  if (!context.ok) return { ok: false, message: context.error };
 
   const parsed = announcementSchema.safeParse({
     title: readText(formData, "title"),
@@ -1806,7 +1809,7 @@ export async function updateGymWebsiteAction(
   formData: FormData,
 ): Promise<ActionState> {
   const context = await ownerContext("cms.manage");
-  if ("error" in context) return { ok: false, message: context.error };
+  if (!context.ok) return { ok: false, message: context.error };
 
   const parsed = websiteSchema.safeParse({
     heroTitle: readText(formData, "heroTitle"),
