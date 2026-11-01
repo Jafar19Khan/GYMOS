@@ -103,6 +103,7 @@ const permissions = [
   ["media.manage", "Manage media"],
   ["fitness.read", "View fitness plans and progress"],
   ["fitness.manage", "Manage workouts and diet plans"],
+  ["audit.read", "View audit history"],
   ["settings.manage", "Manage gym settings"],
 ] as const;
 
