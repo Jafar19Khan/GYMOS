@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { GYM_PERMISSIONS, requireGymPermission } from "@/lib/auth/permissions";
 import { getCurrentUser } from "@/lib/auth/session";
+import { canDelegateGymPermissions } from "@/lib/auth/policy";
 import { prisma } from "@/lib/prisma";
 import { parseRupeesToPaise } from "@/lib/operations/money";
 
@@ -23,16 +24,15 @@ async function canDelegatePermissions(
 ): Promise<boolean> {
   if (isGymOwner) return true;
 
-  // Staff can delegate only non-privileged permissions already granted to themselves.
-  const restricted = new Set(["staff.manage", "members.delete", "members.export", "settings.manage"]);
-  if (requested.some((permission) => restricted.has(permission))) return false;
-
   const ownGrants = await prisma.staffPermission.findMany({
     where: { userId, gymId },
     select: { permission: true },
   });
-  const allowed = new Set(ownGrants.map((grant) => grant.permission));
-  return requested.every((permission) => allowed.has(permission));
+  return canDelegateGymPermissions(
+    false,
+    ownGrants.map((grant) => grant.permission),
+    requested,
+  );
 }
 
 async function ownerContext(permission: (typeof GYM_PERMISSIONS)[number]) {
