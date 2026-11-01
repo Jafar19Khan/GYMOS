@@ -2,7 +2,7 @@ import { Role, UserStatus } from "@prisma/client";
 import AppShell from "@/app/components/app-shell";
 import { StaffCreateForm, StaffPermissionsForm } from "@/app/owner/components/operation-forms";
 import { requireRole } from "@/lib/auth/guards";
-import { GYM_PERMISSIONS, hasGymPermission } from "@/lib/auth/permissions";
+import { hasGymPermission } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/prisma";
 
 export default async function StaffPage() {
