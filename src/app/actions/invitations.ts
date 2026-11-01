@@ -4,7 +4,7 @@ import { Role, UserStatus } from "@prisma/client";
 import { hash } from "bcryptjs";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { hashInvitationToken, isInvitationTokenFormat } from "@/lib/auth/invitations";
+import { hashInvitationToken, isInvitationTokenFormat, isInvitationUsable } from "@/lib/auth/invitations";
 import { prisma } from "@/lib/prisma";
 
 export type ActivationActionState = {
@@ -23,36 +23,6 @@ const activationSchema = z.object({
   path: ["confirmPassword"],
   message: "Passwords do not match.",
 });
-
-function invitationIsUsable(
-  invitation: {
-    gymId: string;
-    expiresAt: Date;
-    consumedAt: Date | null;
-    revokedAt: Date | null;
-    user: {
-      role: Role;
-      status: UserStatus;
-      gymId: string | null;
-      isGymOwner: boolean;
-    };
-  } | null,
-  now: Date,
-): boolean {
-  if (!invitation) return false;
-  const supportedAccount =
-    invitation.user.role === Role.MEMBER ||
-    (invitation.user.role === Role.OWNER && !invitation.user.isGymOwner);
-
-  return (
-    supportedAccount &&
-    invitation.user.gymId === invitation.gymId &&
-    invitation.user.status === UserStatus.INVITED &&
-    invitation.consumedAt === null &&
-    invitation.revokedAt === null &&
-    invitation.expiresAt > now
-  );
-}
 
 export async function activateAccountAction(
   _previous: ActivationActionState,
@@ -81,7 +51,7 @@ export async function activateAccountAction(
     },
   });
 
-  if (!invitation || !invitationIsUsable(invitation, new Date())) {
+  if (!invitation || !isInvitationUsable(invitation, new Date())) {
     return { ok: false, message: "This invitation is invalid, expired, already used or revoked. Ask your gym for a new invitation." };
   }
 
@@ -112,7 +82,7 @@ export async function activateAccountAction(
           user: { select: { id: true, role: true, status: true, gymId: true, isGymOwner: true } },
         },
       });
-      if (!current || !invitationIsUsable(current, new Date())) throw new Error("INVITATION_INVALID");
+      if (!current || !isInvitationUsable(current, new Date())) throw new Error("INVITATION_INVALID");
 
       const updatedUser = await tx.user.updateMany({
         where: {
