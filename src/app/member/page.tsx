@@ -2,6 +2,7 @@ import { MembershipStatus, Role } from "@prisma/client";
 import AppShell from "@/app/components/app-shell";
 import { requireRole } from "@/lib/auth/guards";
 import { prisma } from "@/lib/prisma";
+import { dateOnlyInTimeZone } from "@/lib/operations/dates";
 
 function Metric({ label, value, detail }: { label: string; value: string | number; detail: string }) {
   return <article className="surface rounded-2xl p-6">
@@ -13,6 +14,8 @@ function Metric({ label, value, detail }: { label: string; value: string | numbe
 
 export default async function MemberDashboard() {
   const user = await requireRole(Role.MEMBER);
+  const today = dateOnlyInTimeZone(new Date(), user.gym?.timezone ?? "Asia/Kolkata");
+  const todayDate = new Date(`${today}T00:00:00.000Z`);
   const [profile, memberships, attendanceCount, bookingCount] = await Promise.all([
     prisma.memberProfile.findUnique({ where: { userId: user.id } }),
     prisma.membership.findMany({
@@ -20,6 +23,7 @@ export default async function MemberDashboard() {
         memberId: user.id,
         ...(user.gymId ? { gymId: user.gymId } : {}),
         status: { in: [MembershipStatus.ACTIVE, MembershipStatus.UPCOMING, MembershipStatus.FROZEN] },
+        endDate: { gte: todayDate },
       },
       include: { plan: true },
       orderBy: { startDate: "desc" },
@@ -36,7 +40,7 @@ export default async function MemberDashboard() {
     description="Your personal workspace. Only your own membership, attendance and bookings are shown here."
     userName={user.name} roleLabel="Member">
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-      <Metric label="Membership" value={planName} detail={currentMembership ? `Valid until ${currentMembership.endDate.toLocaleDateString("en-IN")}` : "Ask your gym about membership plans"} />
+      <Metric label="Membership" value={planName} detail={currentMembership ? `Valid until ${currentMembership.endDate.toLocaleDateString("en-IN", { timeZone: "UTC" })}` : "Ask your gym about membership plans"} />
       <Metric label="Check-ins" value={attendanceCount} detail="Your recorded visits" />
       <Metric label="Class bookings" value={bookingCount} detail="Your booked and waitlisted classes" />
     </div>
