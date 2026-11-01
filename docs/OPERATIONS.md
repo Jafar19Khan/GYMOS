@@ -13,20 +13,27 @@ GYMOS is intended to be tested locally with Docker Compose before any cloud depl
    ```
 
 3. Set a strong local `POSTGRES_PASSWORD` and make it match `DATABASE_URL` and `DATABASE_URL_DOCKER`. Set `BOOTSTRAP_OWNER_EMAIL` and `BOOTSTRAP_OWNER_PASSWORD` (12+ characters, no more than 72 UTF-8 bytes). Keep bootstrap credentials local; do not commit `.env`.
-4. Build and start the application:
+4. Generate a separate QR signing secret and paste the output into `ATTENDANCE_QR_SECRET`:
+
+   ```powershell
+   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+   ```
+
+   Keep this secret private. All web containers must use the same value. Without it, manual attendance still works, but QR attendance is disabled.
+5. Build and start the application:
 
    ```powershell
    docker compose -f docker/compose.yaml up --build -d
    ```
 
-5. Create the owner account. On the host, from the repository root:
+6. Create the owner account. On the host, from the repository root:
 
    ```powershell
    npm install
    npm run db:seed
    ```
 
-6. Confirm readiness and open the app:
+7. Confirm readiness and open the app:
 
    ```powershell
    Invoke-RestMethod http://localhost:3000/api/health
@@ -34,7 +41,7 @@ GYMOS is intended to be tested locally with Docker Compose before any cloud depl
    Start-Process http://localhost:3000
    ```
 
-The container applies all committed Prisma migrations before it starts Next.js. The database readiness endpoint returns HTTP 503 until PostgreSQL is reachable.
+The web container applies all committed Prisma migrations before Next.js starts. The readiness endpoint returns HTTP 503 until PostgreSQL is reachable. For camera QR scanning, use `localhost` or HTTPS and allow browser camera access.
 
 ## Local quality checks
 
@@ -49,7 +56,7 @@ npm run test
 npm run build
 ```
 
-The GitHub Actions CI runs the same validation, migration, lint, typecheck, test, build and production Docker image steps against PostgreSQL 16.
+GitHub Actions CI runs the same validation, migration, lint, typecheck, test, build and production Docker image steps against PostgreSQL 16.
 
 ## Backup and restore
 
@@ -89,6 +96,7 @@ docker compose -f docker/compose.yaml down
 
 - The first release records payments manually; no card/UPI gateway is connected.
 - Invitation email delivery is not configured; owners share expiring one-time links through a trusted channel.
-- Local readiness/health endpoints are available. External monitoring/alert delivery still needs an operator-selected service.
-- AWS infrastructure is not provisioned. Any cloud deployment requires a separate account/region pricing review and explicit cost approval.
-- Before public production use, complete rate-limiting/MFA/recovery, external email delivery, security review, backup restore drills, monitoring/alerting and an end-to-end test pass.
+- The public CMS supports text/contact/membership content. Image/video upload is disabled until private object storage and signed access are configured.
+- Local health/readiness endpoints are available. External monitoring/alert delivery still needs an operator-selected service.
+- MFA and account recovery remain required for public production.
+- AWS infrastructure is not provisioned. Any cloud deployment requires an account/region pricing review and explicit cost approval.
