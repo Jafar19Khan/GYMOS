@@ -12,6 +12,8 @@ import {
   issueAccountInvitationAction,
   recordAttendanceAction,
   recordPaymentAction,
+  recordRefundAction,
+  recordAdjustmentAction,
   setMembershipPlanActiveAction,
   updateMemberProfileAction,
   updateMemberStatusAction,
@@ -350,4 +352,51 @@ export function StaffStatusForm({ staffId, nextStatus }: { staffId: string; next
     </form>
     <Notice state={state} />
   </div>;
+}
+
+
+export function RefundCreateForm({ paymentId }: { paymentId: string }) {
+  const [state, action, pending] = useActionState(recordRefundAction, initial);
+  return <details className="mt-3">
+    <summary className="cursor-pointer text-[10px] font-bold text-amber-200">Record refund</summary>
+    <form action={action} className="mt-3 grid gap-3 sm:grid-cols-2">
+      <input type="hidden" name="paymentId" value={paymentId} />
+      <Field label="Refund amount (INR)" name="amount" required placeholder="250.00" />
+      <label className="block">
+        <span className="mb-2 block text-[11px] font-semibold text-white/60">Returned via</span>
+        <select name="method" required defaultValue="UPI" className="w-full rounded-xl border border-white/10 bg-[#111612] px-3 py-2.5 text-xs text-white">
+          <option value="CASH">Cash</option><option value="UPI">UPI</option><option value="CARD">Card</option><option value="BANK_TRANSFER">Bank transfer</option><option value="OTHER">Other</option>
+        </select>
+      </label>
+      <Field label="Reference (optional)" name="reference" placeholder="Refund reference" />
+      <label className="block sm:col-span-2">
+        <span className="mb-2 block text-[11px] font-semibold text-white/60">Reason</span>
+        <textarea name="note" required minLength={3} maxLength={500} rows={2} className="w-full rounded-xl border border-white/10 bg-[#111612] px-3 py-2.5 text-xs text-white outline-none focus:border-[#b6f36a]/60" />
+      </label>
+      <div className="sm:col-span-2"><button disabled={pending} className="rounded-full border border-amber-300/30 px-4 py-2 text-[10px] font-bold text-amber-100 disabled:opacity-50">{pending ? "Recording…" : "Record refund"}</button><Notice state={state} /></div>
+    </form>
+  </details>;
+}
+
+export function AdjustmentCreateForm({ paymentId }: { paymentId: string }) {
+  const [state, action, pending] = useActionState(recordAdjustmentAction, initial);
+  return <details className="mt-3">
+    <summary className="cursor-pointer text-[10px] font-bold text-[#b6f36a]">Record adjustment</summary>
+    <form action={action} className="mt-3 grid gap-3 sm:grid-cols-2">
+      <input type="hidden" name="paymentId" value={paymentId} />
+      <Field label="Adjustment amount (INR)" name="amount" required placeholder="100.00" />
+      <label className="block">
+        <span className="mb-2 block text-[11px] font-semibold text-white/60">Adjustment direction</span>
+        <select name="direction" required defaultValue="DECREASE" className="w-full rounded-xl border border-white/10 bg-[#111612] px-3 py-2.5 text-xs text-white">
+          <option value="DECREASE">Decrease balance</option><option value="INCREASE">Increase balance</option>
+        </select>
+      </label>
+      <Field label="Reference (optional)" name="reference" placeholder="Adjustment reference" />
+      <label className="block sm:col-span-2">
+        <span className="mb-2 block text-[11px] font-semibold text-white/60">Reason</span>
+        <textarea name="note" required minLength={3} maxLength={500} rows={2} className="w-full rounded-xl border border-white/10 bg-[#111612] px-3 py-2.5 text-xs text-white outline-none focus:border-[#b6f36a]/60" />
+      </label>
+      <div className="sm:col-span-2"><button disabled={pending} className="rounded-full border border-[#b6f36a]/30 px-4 py-2 text-[10px] font-bold text-[#b6f36a] disabled:opacity-50">{pending ? "Recording…" : "Record adjustment"}</button><Notice state={state} /></div>
+    </form>
+  </details>;
 }
