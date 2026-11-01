@@ -29,3 +29,6 @@ override.tf.json
 terraform.rc
 data/
 postgres-data/
+
+backups/
+*.dump
