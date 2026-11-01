@@ -5,6 +5,7 @@ import { getDashboardPath } from "@/lib/auth/role-routing";
 import { loginPayloadSchema } from "@/lib/auth/schemas";
 import { createSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
+import { recordAuditEvent } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
@@ -24,7 +25,7 @@ export async function POST(request: Request) {
 
   const user = await prisma.user.findUnique({
     where: { email: parsed.data.email },
-    select: { id: true, passwordHash: true, role: true, status: true },
+    select: { id: true, passwordHash: true, role: true, status: true, gymId: true },
   });
 
   if (!user || user.status !== UserStatus.ACTIVE || !(await compare(parsed.data.password, user.passwordHash))) {
@@ -32,6 +33,11 @@ export async function POST(request: Request) {
   }
 
   await createSession(user.id);
+  try {
+    await recordAuditEvent({ actorId: user.id, gymId: user.gymId, event: "auth.login", resourceType: "session" });
+  } catch {
+    console.error("GYMOS could not persist the successful-login audit event.");
+  }
 
   return NextResponse.json({
     ok: true,
