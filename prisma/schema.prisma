@@ -263,8 +263,9 @@ model Payment {
   createdById    String        @db.Uuid
   type           PaymentType
   method         PaymentMethod
-  amountPaise    Int
-  currency       String        @default("INR")
+  amountPaise      Int
+  relatedPaymentId String?      @db.Uuid
+  currency         String        @default("INR")
   reference      String?
   note           String?
   idempotencyKey String?       @unique
@@ -273,7 +274,10 @@ model Payment {
   gym       Gym  @relation(fields: [gymId], references: [id], onDelete: Restrict)
   member    User @relation("PaymentMember", fields: [memberId], references: [id], onDelete: Restrict)
   createdBy User @relation("PaymentCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  relatedPayment Payment? @relation("PaymentAdjustments", fields: [relatedPaymentId], references: [id], onDelete: SetNull)
+  relatedEntries Payment[] @relation("PaymentAdjustments")
 
+  @@index([relatedPaymentId])
   @@index([gymId, createdAt])
   @@index([memberId, createdAt])
   @@map("payments")
