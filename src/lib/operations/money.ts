@@ -4,11 +4,13 @@ export function parseRupeesToPaise(value: string): number | null {
   }
 
   const [rupeesPart, paisePart = ""] = value.split(".");
-  const paise = BigInt(rupeesPart) * 100n + BigInt((paisePart + "00").slice(0, 2));
+  const rupees = Number(rupeesPart);
+  const paise = Number((paisePart + "00").slice(0, 2));
+  const totalPaise = rupees * 100 + paise;
 
-  if (paise < 1n || paise > BigInt(Number.MAX_SAFE_INTEGER)) {
+  if (!Number.isSafeInteger(totalPaise) || totalPaise < 1) {
     return null;
   }
 
-  return Number(paise);
+  return totalPaise;
 }
