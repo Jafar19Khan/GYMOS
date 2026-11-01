@@ -3,6 +3,7 @@ import AppShell from "@/app/components/app-shell";
 import { requireRole } from "@/lib/auth/guards";
 import { prisma } from "@/lib/prisma";
 import { dateOnlyInTimeZone } from "@/lib/operations/dates";
+import AttendanceQrCard from "@/app/member/components/attendance-qr-card";
 
 function Metric({ label, value, detail }: { label: string; value: string | number; detail: string }) {
   return <article className="surface rounded-2xl p-6">
@@ -45,6 +46,7 @@ export default async function MemberDashboard() {
       <Metric label="Check-ins" value={attendanceCount} detail="Your recorded visits" />
       <Metric label="Class bookings" value={bookingCount} detail="Your booked and waitlisted classes" />
     </div>
+    {user.gymId && <div className="mt-6"><AttendanceQrCard /></div>}
     <section className="surface mt-6 rounded-2xl p-6">
       <h2 className="text-lg font-extrabold">Recent attendance</h2>
       {attendanceHistory.length === 0 ? <p className="mt-4 py-5 text-center text-sm text-white/40">No check-ins recorded yet.</p> : <div className="mt-4 divide-y divide-white/5">
