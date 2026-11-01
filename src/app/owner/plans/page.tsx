@@ -18,7 +18,7 @@ export default async function PlansPage() {
 
   const [plans, members, memberships, canManage] = await Promise.all([
     prisma.membershipPlan.findMany({ where: { gymId: user.gymId }, orderBy: { createdAt: "desc" } }),
-    prisma.user.findMany({ where: { gymId: user.gymId, role: Role.MEMBER, status: { not: UserStatus.SUSPENDED } }, select: { id: true, name: true, email: true }, orderBy: { name: "asc" }, take: 500 }),
+    prisma.user.findMany({ where: { gymId: user.gymId, role: Role.MEMBER, status: { notIn: [UserStatus.SUSPENDED, UserStatus.ARCHIVED] } }, select: { id: true, name: true, email: true }, orderBy: { name: "asc" }, take: 500 }),
     prisma.membership.findMany({ where: { gymId: user.gymId }, include: { member: { select: { name: true, email: true } }, plan: { select: { name: true } } }, orderBy: { startDate: "desc" }, take: 100 }),
     hasGymPermission(user.id, user.gymId, "memberships.manage"),
   ]);
