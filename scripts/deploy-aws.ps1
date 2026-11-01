@@ -55,7 +55,7 @@ runuser -u gymos -- bash -c '
   source /etc/gymos/gymos.env
   set +a
   cd /opt/gymos
-  npm install --no-audit --no-fund
+  npm install --include=dev --no-audit --no-fund
   npm run db:generate
   npm run db:deploy
   npm run build
