@@ -26,7 +26,7 @@
 
 ## Required before production
 
-- IP identification for login throttling relies on trusted reverse-proxy forwarding headers in deployed environments; do not trust arbitrary client-supplied forwarding headers.
+- Login throttling ignores `X-Forwarded-For` and `X-Real-IP` by default. Set `TRUST_PROXY_HEADERS=true` only when a trusted reverse proxy removes client-supplied forwarding headers and writes sanitized values.
 - MFA and secure account recovery are not implemented yet.
 - Invitation email delivery is not configured. Owners must share expiring single-use links through a trusted channel.
 - Invitation email delivery is not configured. Owners must copy the generated one-time activation link and deliver it to the intended recipient through a trusted channel; the link itself is not stored in plaintext.

@@ -36,7 +36,7 @@ export default async function OwnerDashboard() {
   const today = dateOnlyInTimeZone(new Date(), user.gym?.timezone ?? "Asia/Kolkata");
   const todayDate = new Date(`${today}T00:00:00.000Z`);
   const [members, activeMembers, activeMemberships, recentAttendance, paymentRecords] = await Promise.all([
-    prisma.user.count({ where: { gymId: user.gymId, role: Role.MEMBER } }),
+    prisma.user.count({ where: { gymId: user.gymId, role: Role.MEMBER, status: { not: UserStatus.ARCHIVED } } }),
     prisma.user.count({ where: { gymId: user.gymId, role: Role.MEMBER, status: UserStatus.ACTIVE } }),
     prisma.membership.count({ where: { gymId: user.gymId, status: "ACTIVE", endDate: { gte: todayDate } } }),
     prisma.attendance.count({ where: { gymId: user.gymId, checkedInAt: { gte: since } } }),

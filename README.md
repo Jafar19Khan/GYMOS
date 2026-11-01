@@ -63,7 +63,7 @@ Passwords are bcrypt-hashed. Login creates a cryptographically random opaque ses
 
 The three top-level roles are enforced on the server. Gym staff accounts use the Owner workspace but receive only explicitly granted permissions; the primary gym owner has the full gym permission set. Members can query only records associated with their own user ID. Public self-registration is disabled; privileged accounts are created by an operator-controlled seed process.
 
-This is a working local-first release candidate, not a production security certification. Login throttling is enabled. MFA, secure account recovery, provider-backed invitation email, private media storage, external monitoring, comprehensive E2E/IDOR/concurrency tests and an independent security review remain required before public production use.
+This is a working local-first release candidate, not a production security certification. Database-backed login throttling is enabled; proxy IP headers are ignored unless `TRUST_PROXY_HEADERS=true` is configured for a trusted, sanitizing reverse proxy. MFA, secure account recovery, provider-backed invitation email, private media storage, external monitoring, comprehensive E2E/IDOR/concurrency tests and an independent security review remain required before public production use.
 
 ## Cost gate
 

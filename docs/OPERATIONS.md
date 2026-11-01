@@ -12,7 +12,7 @@ GYMOS is intended to be tested locally with Docker Compose before any cloud depl
    notepad .env
    ```
 
-3. Set a strong local `POSTGRES_PASSWORD` and make it match `DATABASE_URL` and `DATABASE_URL_DOCKER`. Set `BOOTSTRAP_OWNER_EMAIL` and `BOOTSTRAP_OWNER_PASSWORD` (12+ characters, no more than 72 UTF-8 bytes). Keep bootstrap credentials local; do not commit `.env`.
+3. Keep `TRUST_PROXY_HEADERS=false` for direct local use. Set it to `true` only when a trusted reverse proxy strips user-supplied forwarding headers and sets its own client IP values. Set a strong local `POSTGRES_PASSWORD` and make it match `DATABASE_URL` and `DATABASE_URL_DOCKER`. Set `BOOTSTRAP_OWNER_EMAIL` and `BOOTSTRAP_OWNER_PASSWORD` (12+ characters, no more than 72 UTF-8 bytes). Keep bootstrap credentials local; do not commit `.env`.
 4. Generate a separate QR signing secret and paste the output into `ATTENDANCE_QR_SECRET`:
 
    ```powershell

@@ -24,8 +24,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Enter a valid email and password." }, { status: 400 });
   }
 
-  const forwardedFor = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  const ipAddress = forwardedFor || request.headers.get("x-real-ip") || "unknown";
+  // Only trust forwarding headers when the deployment proxy strips client values and writes its own.
+  const trustProxyHeaders = process.env.TRUST_PROXY_HEADERS === "true";
+  const forwardedFor = trustProxyHeaders ? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() : undefined;
+  const realIp = trustProxyHeaders ? request.headers.get("x-real-ip")?.trim() : undefined;
+  const ipAddress = forwardedFor || realIp || "unknown";
   const throttleKey = createLoginThrottleKey(parsed.data.email, ipAddress);
   const throttle = await getLoginThrottle(throttleKey);
   if (throttle.blocked) {

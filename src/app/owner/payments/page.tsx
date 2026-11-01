@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { PaymentType, Role } from "@prisma/client";
+import { PaymentType, Role, UserStatus } from "@prisma/client";
 import AppShell from "@/app/components/app-shell";
 import { AdjustmentCreateForm, PaymentCreateForm, RefundCreateForm } from "@/app/owner/components/operation-forms";
 import { requireRole } from "@/lib/auth/guards";
@@ -52,7 +52,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
       take: 100,
     }),
     prisma.user.findMany({
-      where: { gymId: user.gymId, role: Role.MEMBER },
+      where: { gymId: user.gymId, role: Role.MEMBER, status: { not: UserStatus.ARCHIVED } },
       select: { id: true, name: true, email: true },
       orderBy: { name: "asc" },
       take: 500,
