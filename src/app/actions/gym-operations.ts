@@ -10,6 +10,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { canDelegateGymPermissions } from "@/lib/auth/policy";
 import { prisma } from "@/lib/prisma";
 import { parseRupeesToPaise } from "@/lib/operations/money";
+import { addCalendarDays, dateOnlyInTimeZone } from "@/lib/operations/dates";
 
 export type ActionState = {
   ok: boolean;
@@ -386,14 +387,19 @@ export async function assignMembershipAction(
   ]);
   if (!member || !plan) return { ok: false, message: "Member or active plan not found in your gym." };
 
-  const startDate = new Date(`${parsed.data.startDate}T00:00:00.000Z`);
-  if (Number.isNaN(startDate.getTime())) return { ok: false, message: "Invalid start date." };
-  const endDate = new Date(startDate);
-  endDate.setUTCDate(endDate.getUTCDate() + plan.durationDays - 1);
-  const now = new Date();
-  const status = startDate <= new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
-    ? MembershipStatus.ACTIVE
-    : MembershipStatus.UPCOMING;
+  const startDateOnly = parsed.data.startDate;
+  const startDate = new Date(`${startDateOnly}T00:00:00.000Z`);
+  if (Number.isNaN(startDate.getTime()) || startDate.toISOString().slice(0, 10) !== startDateOnly) {
+    return { ok: false, message: "Invalid start date." };
+  }
+  const endDateOnly = addCalendarDays(startDateOnly, plan.durationDays - 1);
+  const endDate = new Date(`${endDateOnly}T00:00:00.000Z`);
+  const today = dateOnlyInTimeZone(new Date(), context.user.gym?.timezone ?? "Asia/Kolkata");
+  const status = endDateOnly < today
+    ? MembershipStatus.EXPIRED
+    : startDateOnly > today
+      ? MembershipStatus.UPCOMING
+      : MembershipStatus.ACTIVE;
 
   try {
     await prisma.$transaction(async (tx) => {
