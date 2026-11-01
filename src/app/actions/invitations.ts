@@ -81,7 +81,7 @@ export async function activateAccountAction(
     },
   });
 
-  if (!invitationIsUsable(invitation, new Date())) {
+  if (!invitation || !invitationIsUsable(invitation, new Date())) {
     return { ok: false, message: "This invitation is invalid, expired, already used or revoked. Ask your gym for a new invitation." };
   }
 
@@ -112,7 +112,7 @@ export async function activateAccountAction(
           user: { select: { id: true, role: true, status: true, gymId: true, isGymOwner: true } },
         },
       });
-      if (!invitationIsUsable(current, new Date())) throw new Error("INVITATION_INVALID");
+      if (!current || !invitationIsUsable(current, new Date())) throw new Error("INVITATION_INVALID");
 
       const updatedUser = await tx.user.updateMany({
         where: {
