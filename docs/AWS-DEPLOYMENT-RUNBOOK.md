@@ -119,7 +119,7 @@ $PublicIp = terraform output -raw public_ip
 $Region = terraform output -raw aws_region
 
 $ssmStatus = "None"
-for ($attempt = 1; $attempt -le 40; $attempt++) {
+for ($attempt = 1; $attempt -le 60; $attempt++) {
     $ssmStatus = aws ssm describe-instance-information --region $Region --filters "Key=InstanceIds,Values=$InstanceId" --query "InstanceInformationList[0].PingStatus" --output text
     Write-Host "SSM status: $ssmStatus"
     if ($ssmStatus -eq "Online") { break }
