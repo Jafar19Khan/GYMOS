@@ -217,7 +217,7 @@ export async function updateMemberProfileAction(
       if (!lockedMember.length) throw new Error("MEMBER_NOT_FOUND");
 
       const member = await tx.user.findFirst({
-        where: { id: parsed.data.memberId, gymId: context.gymId, role: Role.MEMBER },
+        where: { id: parsed.data.memberId, gymId: context.gymId, role: Role.MEMBER, status: { not: UserStatus.ARCHIVED } },
         select: { id: true, email: true, status: true },
       });
       if (!member) throw new Error("MEMBER_NOT_FOUND");
@@ -301,6 +301,7 @@ export async function updateMemberStatusAction(
     select: { id: true, status: true },
   });
   if (!member) return { ok: false, message: "Member not found in your gym." };
+  if (member.status === UserStatus.ARCHIVED) return { ok: false, message: "Archived member records cannot be reactivated." };
 
   const nextStatus = statusText as UserStatus;
   if (member.status === UserStatus.INVITED && nextStatus === UserStatus.ACTIVE) {
@@ -326,6 +327,85 @@ export async function updateMemberStatusAction(
   revalidatePath("/owner/members");
   revalidatePath("/owner");
   return { ok: true, message: nextStatus === UserStatus.SUSPENDED ? "Member suspended and active sessions revoked." : "Member reactivated." };
+}
+
+
+
+export async function archiveMemberAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const context = await ownerContext("members.delete");
+  if ("error" in context) return { ok: false, message: context.error };
+
+  const memberId = readText(formData, "memberId");
+  if (!z.string().uuid().safeParse(memberId).success) {
+    return { ok: false, message: "Invalid member record." };
+  }
+
+  const anonymizedPasswordHash = await hash(randomBytes(48).toString("base64url"), 12);
+  try {
+    await prisma.$transaction(async (tx) => {
+      const locked = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT "id" FROM "users"
+        WHERE "id" = ${memberId}::uuid
+          AND "gymId" = ${context.gymId}::uuid
+        FOR UPDATE
+      `;
+      if (!locked.length) throw new Error("MEMBER_NOT_FOUND");
+
+      const member = await tx.user.findFirst({
+        where: { id: memberId, gymId: context.gymId, role: Role.MEMBER, status: { not: UserStatus.ARCHIVED } },
+        select: { id: true },
+      });
+      if (!member) throw new Error("MEMBER_NOT_FOUND");
+
+      const now = new Date();
+      await tx.user.update({
+        where: { id: member.id },
+        data: {
+          name: "Archived member",
+          email: `archived+${member.id}@privacy.invalid`,
+          passwordHash: anonymizedPasswordHash,
+          status: UserStatus.ARCHIVED,
+        },
+      });
+      await tx.memberProfile.updateMany({
+        where: { userId: member.id, gymId: context.gymId },
+        data: {
+          phone: null,
+          emergencyContactName: null,
+          emergencyContactPhone: null,
+          dateOfBirth: null,
+          healthDataConsent: false,
+        },
+      });
+      await tx.session.deleteMany({ where: { userId: member.id } });
+      await tx.accountInvitation.updateMany({
+        where: { userId: member.id, consumedAt: null, revokedAt: null },
+        data: { revokedAt: now },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorId: context.user.id,
+          gymId: context.gymId,
+          event: "member.archived",
+          resourceType: "user",
+          resourceId: member.id,
+          metadata: { personalFieldsAnonymized: true, financialAndMembershipRecordsRetained: true },
+        },
+      });
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "MEMBER_NOT_FOUND") {
+      return { ok: false, message: "Member not found or already archived." };
+    }
+    return { ok: false, message: "Member could not be archived. Please retry." };
+  }
+
+  revalidatePath("/owner/members");
+  revalidatePath("/owner");
+  return { ok: true, message: "Member archived. Personal profile data and sessions were removed; ledger and membership history were retained for reconciliation." };
 }
 
 const staffSchema = z.object({
