@@ -27,7 +27,7 @@ APP_DIR="/opt/gymos"
 BRANCH="__BRANCH__"
 REPO_URL="https://github.com/Jafar19Khan/GYMOS.git"
 
-for attempt in $(seq 1 60); do
+for attempt in $(seq 1 240); do
   if id gymos >/dev/null 2>&1 && systemctl is-active --quiet postgresql && systemctl is-active --quiet nginx && test -s /etc/gymos/gymos.env; then
     break
   fi
