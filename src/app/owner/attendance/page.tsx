@@ -5,6 +5,7 @@ import { requireRole } from "@/lib/auth/guards";
 import { hasGymPermission } from "@/lib/auth/permissions";
 import { dateOnlyInTimeZone } from "@/lib/operations/dates";
 import { prisma } from "@/lib/prisma";
+import Link from "next/link";
 
 export default async function AttendancePage() {
   const user = await requireRole(Role.OWNER);
@@ -45,7 +46,7 @@ export default async function AttendancePage() {
   ]);
 
   return <AppShell eyebrow="Gym operations / Daily check-ins" title="Attendance" description="Record manual member check-ins and review the latest gym attendance. Each active member can be checked in once per gym-local calendar day." userName={user.name} roleLabel="Owner / Staff">
-    {canManage && <div className="mb-6"><AttendanceCreateForm members={members} /></div>}
+    {canManage && <div className="mb-6 grid gap-4 xl:grid-cols-2"><AttendanceCreateForm members={members} /><section className="surface rounded-2xl p-5 md:p-6"><p className="eyebrow">Contactless check-in</p><h2 className="mt-2 text-lg font-extrabold">Scan member QR</h2><p className="mt-2 text-xs leading-5 text-white/45">Use the camera scanner for signed, short-lived member QR codes.</p><Link href="/owner/attendance/scan" className="mt-5 inline-flex rounded-full bg-[#b6f36a] px-5 py-3 text-xs font-black text-[#090b0a]">Open QR scanner</Link></section></div>}
     <section className="surface rounded-2xl p-5 md:p-6">
       <div className="mb-5 flex items-center justify-between gap-3">
         <h2 className="text-lg font-extrabold">Recent check-ins</h2>
@@ -61,7 +62,7 @@ export default async function AttendancePage() {
           </tr>)}</tbody>
         </table>
       </div>}
-      <p className="mt-5 text-[11px] text-white/35">Showing the latest 100 check-ins. QR scanning is not enabled; entries on this page are manual.</p>
+      <p className="mt-5 text-[11px] text-white/35">Showing the latest 100 check-ins. Manual and signed QR check-ins are recorded in the same attendance ledger.</p>
     </section>
   </AppShell>;
 }
