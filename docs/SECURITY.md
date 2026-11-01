@@ -1,12 +1,31 @@
 # Security baseline
 
+## Implemented in this milestone
+
+- Passwords are hashed with bcrypt (work factor 12); no plaintext passwords are stored.
+- Login creates a cryptographically random opaque session token. Only the SHA-256 token hash is stored in PostgreSQL.
+- Browser sessions use HttpOnly, SameSite=Lax cookies, Secure in production, path scoping and a seven-day expiry.
+- Suspended users are rejected when a session is read.
+- Top-level role checks happen on the server. Gym staff use explicit permission grants; the primary gym owner is the only account with automatic full gym permissions.
+- Login errors are generic and do not reveal whether an email exists.
+- Public self-registration is disabled. Bootstrap credentials are operator-supplied and are never committed.
+
+## Required before production
+
+- Login throttling/rate limiting is not implemented yet.
+- MFA and secure account recovery are not implemented yet.
+- Full audit-event writing and review flows are not implemented yet.
+- Every future server action/API must verify gym scope and member ownership; dashboard isolation alone is not sufficient.
+- Add integration tests for cross-gym access, IDOR, suspended users, session expiry, permission changes and concurrent writes.
+- Add security headers/CSP review, dependency and image scanning, secret handling, backup/restore and incident drills.
+
 ## Identity and access
 
-- Use established authentication and secure HTTP-only, same-site cookies; do not invent cryptography or casual password handling.
 - Enforce server-side RBAC and resource ownership checks at every data boundary.
-- Require MFA for privileged accounts where the identity provider supports it.
-- Rate-limit login, recovery, upload-signing and sensitive write endpoints.
-- Rotate/invalidate sessions after privilege changes or suspension.
+- Privileged MFA is a release requirement.
+- Rate-limit login, recovery, upload-signing and sensitive write endpoints before public release.
+- Revoke sessions after privilege changes, password reset or suspension.
+- Deny by default. Platform super-admin access to gym-level data must be explicit, time-bounded and audited.
 
 ## Data protection
 
