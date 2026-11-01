@@ -16,7 +16,7 @@ export default async function MemberDashboard() {
   const user = await requireRole(Role.MEMBER);
   const today = dateOnlyInTimeZone(new Date(), user.gym?.timezone ?? "Asia/Kolkata");
   const todayDate = new Date(`${today}T00:00:00.000Z`);
-  const [profile, memberships, attendanceCount, bookingCount] = await Promise.all([
+  const [profile, memberships, attendanceCount, attendanceHistory, bookingCount] = await Promise.all([
     prisma.memberProfile.findUnique({ where: { userId: user.id } }),
     prisma.membership.findMany({
       where: {
@@ -29,7 +29,8 @@ export default async function MemberDashboard() {
       orderBy: { startDate: "desc" },
       take: 3,
     }),
-    prisma.attendance.count({ where: { memberId: user.id } }),
+    prisma.attendance.count({ where: { memberId: user.id, ...(user.gymId ? { gymId: user.gymId } : {}) } }),
+    prisma.attendance.findMany({ where: { memberId: user.id, ...(user.gymId ? { gymId: user.gymId } : {}) }, orderBy: { checkedInAt: "desc" }, take: 10, select: { id: true, checkedInAt: true, method: true } }),
     prisma.classBooking.count({ where: { memberId: user.id, status: { in: ["BOOKED", "WAITLISTED"] } } }),
   ]);
 
@@ -44,6 +45,16 @@ export default async function MemberDashboard() {
       <Metric label="Check-ins" value={attendanceCount} detail="Your recorded visits" />
       <Metric label="Class bookings" value={bookingCount} detail="Your booked and waitlisted classes" />
     </div>
+    <section className="surface mt-6 rounded-2xl p-6">
+      <h2 className="text-lg font-extrabold">Recent attendance</h2>
+      {attendanceHistory.length === 0 ? <p className="mt-4 py-5 text-center text-sm text-white/40">No check-ins recorded yet.</p> : <div className="mt-4 divide-y divide-white/5">
+        {attendanceHistory.map((record) => <div key={record.id} className="flex items-center justify-between gap-4 py-3 text-sm">
+          <span>{record.checkedInAt.toLocaleString("en-IN", { timeZone: user.gym?.timezone ?? "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" })}</span>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">{record.method}</span>
+        </div>)}
+      </div>}
+      <p className="mt-3 text-[11px] text-white/35">Showing your latest 10 check-ins.</p>
+    </section>
     <section className="surface mt-6 rounded-2xl p-6">
       <h2 className="text-lg font-extrabold">Your profile</h2>
       <div className="mt-4 grid gap-4 text-sm sm:grid-cols-2">
