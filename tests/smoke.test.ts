@@ -2,7 +2,7 @@ import { Role } from "@prisma/client";
 import { describe, expect, it } from "vitest";
 import { getDashboardPath } from "../src/lib/auth/role-routing";
 import { loginPayloadSchema } from "../src/lib/auth/schemas";
-import { isGymPermissionGranted } from "../src/lib/auth/policy";
+import { canDelegateGymPermissions, isGymPermissionGranted } from "../src/lib/auth/policy";
 
 describe("role-based dashboard routing", () => {
   it("routes each application role to its own dashboard", () => {
@@ -25,6 +25,22 @@ describe("gym staff permission policy", () => {
   it("does not grant gym permissions to members or platform admins", () => {
     expect(isGymPermissionGranted(Role.MEMBER, false, ["finance.read"], "finance.read")).toBe(false);
     expect(isGymPermissionGranted(Role.SUPER_ADMIN, false, ["finance.read"], "finance.read")).toBe(false);
+  });
+});
+
+describe("staff permission delegation", () => {
+  it("allows the primary gym owner to grant permissions", () => {
+    expect(canDelegateGymPermissions(true, [], ["finance.write", "staff.manage"])).toBe(true);
+  });
+
+  it("limits staff to permissions they already hold", () => {
+    expect(canDelegateGymPermissions(false, ["members.read"], ["members.read"])).toBe(true);
+    expect(canDelegateGymPermissions(false, ["members.read"], ["finance.write"])).toBe(false);
+  });
+
+  it("blocks staff from delegating elevated permissions", () => {
+    expect(canDelegateGymPermissions(false, ["staff.manage"], ["staff.manage"])).toBe(false);
+    expect(canDelegateGymPermissions(false, ["members.delete"], ["members.delete"])).toBe(false);
   });
 });
 
