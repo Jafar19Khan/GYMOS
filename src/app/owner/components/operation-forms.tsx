@@ -9,6 +9,7 @@ import {
   createMemberAction,
   createMembershipPlanAction,
   createStaffAction,
+  issueAccountInvitationAction,
   recordAttendanceAction,
   recordPaymentAction,
   setMembershipPlanActiveAction,
@@ -21,9 +22,17 @@ const initial: ActionState = { ok: false, message: "" };
 
 function Notice({ state }: { state: ActionState }) {
   if (!state.message) return null;
-  return <p role="status" className={state.ok
-    ? "mt-4 rounded-lg border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-xs leading-5 text-emerald-200"
-    : "mt-4 rounded-lg border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-xs leading-5 text-amber-100"}>{state.message}</p>;
+  return <div className="mt-4 space-y-3">
+    <p role="status" className={state.ok
+      ? "rounded-lg border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-xs leading-5 text-emerald-200"
+      : "rounded-lg border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-xs leading-5 text-amber-100"}>{state.message}</p>
+    {state.invitationUrl && <label className="block rounded-lg border border-white/10 bg-[#111612] p-3">
+      <span className="mb-2 block text-[10px] font-bold uppercase tracking-wider text-white/55">One-time activation link · copy and send securely</span>
+      <input readOnly value={state.invitationUrl} onFocus={(event) => event.currentTarget.select()} aria-label="One-time activation link"
+        className="w-full select-all bg-transparent text-xs text-[#b6f36a] outline-none" />
+      <span className="mt-2 block text-[10px] leading-4 text-white/35">Shown only in this response. It expires in 48 hours and becomes unusable after activation or re-issue.</span>
+    </label>}
+  </div>;
 }
 
 function Field({ label, name, type = "text", required = false, placeholder, min, step }: {
@@ -42,7 +51,7 @@ export function MemberCreateForm() {
   return <section className="surface h-fit rounded-2xl p-5 md:p-6">
     <p className="eyebrow">New record</p>
     <h2 className="mt-2 text-lg font-extrabold">Add member</h2>
-    <p className="mb-5 mt-2 text-xs leading-5 text-white/40">Creates an invitation-pending member record. It does not send an email or activate login access.</p>
+    <p className="mb-5 mt-2 text-xs leading-5 text-white/40">Creates an invitation-pending member and generates a single-use activation link. Copy the link and send it to the member through a trusted channel.</p>
     <form action={action} className="space-y-4">
       <Field label="Full name" name="name" required placeholder="Member name" />
       <Field label="Email address" name="email" type="email" required placeholder="member@example.com" />
@@ -89,7 +98,7 @@ export function StaffCreateForm() {
   return <section className="surface h-fit rounded-2xl p-5 md:p-6">
     <p className="eyebrow">New team account</p>
     <h2 className="mt-2 text-lg font-extrabold">Add staff</h2>
-    <p className="mb-5 mt-2 text-xs leading-5 text-white/40">Staff accounts are invitation-pending. Choose only the permissions needed for this person's work.</p>
+    <p className="mb-5 mt-2 text-xs leading-5 text-white/40">Creates an invitation-pending staff account and a single-use activation link. Copy and send the link through a trusted channel.</p>
     <form action={action} className="space-y-4">
       <Field label="Full name" name="name" required placeholder="Staff name" />
       <Field label="Email address" name="email" type="email" required placeholder="staff@example.com" />
@@ -248,5 +257,18 @@ export function ClassBookingCancelForm({ classId }: { classId: string }) {
     <input type="hidden" name="classId" value={classId} />
     <button disabled={pending} className="rounded-full border border-white/15 px-4 py-2.5 text-[11px] font-bold text-white/65 disabled:opacity-50">{pending ? "Cancelling…" : "Cancel booking"}</button>
     <p role="status" className="mt-2 text-[11px] text-white/50">{state.message}</p>
+  </form>;
+}
+
+
+export function IssueInvitationForm({ targetId, accountType }: { targetId: string; accountType: "MEMBER" | "STAFF" }) {
+  const [state, action, pending] = useActionState(issueAccountInvitationAction, initial);
+  return <form action={action} className="mt-3 space-y-2">
+    <input type="hidden" name="targetId" value={targetId} />
+    <input type="hidden" name="accountType" value={accountType} />
+    <button disabled={pending} className="rounded-full border border-[#b6f36a]/40 px-3 py-2 text-[10px] font-bold text-[#b6f36a] disabled:opacity-50">
+      {pending ? "Generating…" : "Generate new activation link"}
+    </button>
+    <Notice state={state} />
   </form>;
 }
