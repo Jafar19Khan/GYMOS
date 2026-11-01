@@ -24,7 +24,7 @@
     ],
     "paths": {
       "@/*": [
-        "./frontend/src/*"
+        "./src/*"
       ]
     }
   },
@@ -32,8 +32,8 @@
     "next-env.d.ts",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
-    "frontend/**/*.ts",
-    "frontend/**/*.tsx",
+    "src/**/*.ts",
+    "src/**/*.tsx",
     "tests/**/*.ts"
   ],
   "exclude": [
