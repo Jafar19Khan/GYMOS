@@ -1,5 +1,5 @@
 export function parseRupeesToPaise(value: string): number | null {
-  if (!/^\\d{1,7}(?:\\.\\d{1,2})?$/.test(value)) {
+  if (!/^\d{1,7}(?:\.\d{1,2})?$/.test(value)) {
     return null;
   }
 
