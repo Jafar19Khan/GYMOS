@@ -11,7 +11,7 @@ export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   const actor = await getCurrentUser();
-  if (!actor || actor.role !== Role.OWNER || !gymId) {
+  if (!actor || actor.role !== Role.OWNER || !actor.gymId) {
     return NextResponse.json({ error: "Owner or permitted staff sign-in required." }, { status: 401 });
   }
   const gymId = actor.gymId;
@@ -81,7 +81,7 @@ export async function POST(request: Request) {
 
       const record = await tx.attendance.create({
         data: {
-          gymId: gymId!,
+          gymId,
           memberId: member.id,
           recordedById: actor.id,
           method: AttendanceMethod.QR,
