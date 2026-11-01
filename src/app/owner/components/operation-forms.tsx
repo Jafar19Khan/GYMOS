@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import {
+  archiveMemberAction,
   assignMembershipAction,
   bookGymClassAction,
   cancelGymClassBookingAction,
@@ -397,6 +398,20 @@ export function AdjustmentCreateForm({ paymentId }: { paymentId: string }) {
         <textarea name="note" required minLength={3} maxLength={500} rows={2} className="w-full rounded-xl border border-white/10 bg-[#111612] px-3 py-2.5 text-xs text-white outline-none focus:border-[#b6f36a]/60" />
       </label>
       <div className="sm:col-span-2"><button disabled={pending} className="rounded-full border border-[#b6f36a]/30 px-4 py-2 text-[10px] font-bold text-[#b6f36a] disabled:opacity-50">{pending ? "Recording…" : "Record adjustment"}</button><Notice state={state} /></div>
+    </form>
+  </details>;
+}
+
+
+export function ArchiveMemberForm({ memberId }: { memberId: string }) {
+  const [state, action, pending] = useActionState(archiveMemberAction, initial);
+  return <details className="mt-3">
+    <summary className="cursor-pointer text-[10px] font-bold text-red-200">Archive member</summary>
+    <form action={action} className="mt-3 rounded-lg border border-red-300/15 bg-red-300/[0.04] p-3">
+      <input type="hidden" name="memberId" value={memberId} />
+      <p className="text-[11px] leading-5 text-white/55">This anonymizes the personal profile, revokes sessions and links, and retains financial and membership records for reconciliation. This cannot be undone.</p>
+      <button disabled={pending} className="mt-3 rounded-full border border-red-300/30 px-4 py-2 text-[10px] font-bold text-red-100 disabled:opacity-50">{pending ? "Archiving…" : "Confirm archive"}</button>
+      <Notice state={state} />
     </form>
   </details>;
 }
