@@ -28,7 +28,7 @@
 - [ ] Provider-backed invitation email delivery
 - [x] Permission-checked member profile editing for contact and emergency-contact details
 - [x] Staff suspension/reactivation with session revocation; invitation-pending staff remain activation-only
-- [ ] Refund/adjustment workflows, receipts and date-range finance reconciliation
+- [x] Linked refunds and signed adjustments, printable receipts and date-range finance reconciliation
 - [x] Manual attendance with active-membership validation and duplicate same-day protection
 - [ ] QR attendance
 - [x] Class scheduling, member booking, transactional capacity and FIFO waitlist promotion
