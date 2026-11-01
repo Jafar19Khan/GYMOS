@@ -13,8 +13,10 @@ import {
   recordAttendanceAction,
   recordPaymentAction,
   setMembershipPlanActiveAction,
+  updateMemberProfileAction,
   updateMemberStatusAction,
   updateStaffPermissionsAction,
+  updateStaffStatusAction,
 } from "@/app/actions/gym-operations";
 import type { ActionState } from "@/app/actions/gym-operations";
 
@@ -271,4 +273,81 @@ export function IssueInvitationForm({ targetId, accountType }: { targetId: strin
     </button>
     <Notice state={state} />
   </form>;
+}
+
+
+export function MemberProfileForm({
+  memberId,
+  name,
+  email,
+  phone,
+  emergencyContactName,
+  emergencyContactPhone,
+  dateOfBirth,
+}: {
+  memberId: string;
+  name: string;
+  email: string;
+  phone: string;
+  emergencyContactName: string;
+  emergencyContactPhone: string;
+  dateOfBirth: string;
+}) {
+  const [state, action, pending] = useActionState(updateMemberProfileAction, initial);
+  return <details className="mt-4 border-t border-white/10 pt-3">
+    <summary className="cursor-pointer text-xs font-bold text-[#b6f36a]">Edit member profile</summary>
+    <form action={action} className="mt-4 grid gap-3 sm:grid-cols-2">
+      <input type="hidden" name="memberId" value={memberId} />
+      <label className="block">
+        <span className="mb-2 block text-[11px] font-semibold text-white/60">Full name</span>
+        <input name="name" required minLength={2} maxLength={100} defaultValue={name}
+          className="w-full rounded-lg border border-white/10 bg-[#111612] px-3 py-2.5 text-xs text-white outline-none focus:border-[#b6f36a]/60" />
+      </label>
+      <label className="block">
+        <span className="mb-2 block text-[11px] font-semibold text-white/60">Email</span>
+        <input name="email" type="email" required maxLength={254} defaultValue={email}
+          className="w-full rounded-lg border border-white/10 bg-[#111612] px-3 py-2.5 text-xs text-white outline-none focus:border-[#b6f36a]/60" />
+      </label>
+      <label className="block">
+        <span className="mb-2 block text-[11px] font-semibold text-white/60">Phone</span>
+        <input name="phone" maxLength={24} defaultValue={phone}
+          className="w-full rounded-lg border border-white/10 bg-[#111612] px-3 py-2.5 text-xs text-white outline-none focus:border-[#b6f36a]/60" />
+      </label>
+      <label className="block">
+        <span className="mb-2 block text-[11px] font-semibold text-white/60">Date of birth</span>
+        <input name="dateOfBirth" type="date" defaultValue={dateOfBirth}
+          className="w-full rounded-lg border border-white/10 bg-[#111612] px-3 py-2.5 text-xs text-white outline-none focus:border-[#b6f36a]/60" />
+      </label>
+      <label className="block">
+        <span className="mb-2 block text-[11px] font-semibold text-white/60">Emergency contact name</span>
+        <input name="emergencyContactName" maxLength={100} defaultValue={emergencyContactName}
+          className="w-full rounded-lg border border-white/10 bg-[#111612] px-3 py-2.5 text-xs text-white outline-none focus:border-[#b6f36a]/60" />
+      </label>
+      <label className="block">
+        <span className="mb-2 block text-[11px] font-semibold text-white/60">Emergency contact phone</span>
+        <input name="emergencyContactPhone" maxLength={24} defaultValue={emergencyContactPhone}
+          className="w-full rounded-lg border border-white/10 bg-[#111612] px-3 py-2.5 text-xs text-white outline-none focus:border-[#b6f36a]/60" />
+      </label>
+      <div className="sm:col-span-2">
+        <button disabled={pending} className="rounded-full bg-[#b6f36a] px-4 py-2.5 text-[10px] font-black text-[#090b0a] disabled:opacity-50">
+          {pending ? "Saving…" : "Save profile"}
+        </button>
+        <Notice state={state} />
+      </div>
+    </form>
+  </details>;
+}
+
+export function StaffStatusForm({ staffId, nextStatus }: { staffId: string; nextStatus: "ACTIVE" | "SUSPENDED" }) {
+  const [state, action, pending] = useActionState(updateStaffStatusAction, initial);
+  return <div className="mt-3">
+    <form action={action}>
+      <input type="hidden" name="staffId" value={staffId} />
+      <input type="hidden" name="status" value={nextStatus} />
+      <button disabled={pending} className="rounded-full border border-white/15 px-3 py-2 text-[10px] font-bold text-white/65 transition hover:border-[#b6f36a]/50 hover:text-[#b6f36a] disabled:opacity-50">
+        {pending ? "Saving…" : nextStatus === "SUSPENDED" ? "Suspend staff" : "Reactivate staff"}
+      </button>
+    </form>
+    <Notice state={state} />
+  </div>;
 }
