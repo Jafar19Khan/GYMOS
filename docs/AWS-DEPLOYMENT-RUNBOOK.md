@@ -36,6 +36,7 @@ Install AWS CLI v2 and Terraform:
 ```powershell
 winget install --exact --id Amazon.AWSCLI
 winget install --exact --id Hashicorp.Terraform
+winget install --exact --id Git.Git
 ```
 
 Install the Session Manager plugin:
