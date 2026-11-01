@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Role } from "@prisma/client";
 import AppShell from "@/app/components/app-shell";
 import { requireRole } from "@/lib/auth/guards";
@@ -28,10 +29,10 @@ export default async function SuperAdminDashboard() {
       <Metric label="Audit events" value={recentAuditEvents} detail="Recorded in the last 24 hours" />
     </div>
     <section className="surface mt-6 rounded-2xl p-6">
-      <h2 className="text-lg font-extrabold">Operations and security</h2>
+      <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-extrabold">Operations and security</h2><Link href="/super-admin/audit" className="rounded-full border border-white/15 px-4 py-2.5 text-xs font-bold text-[#b6f36a]">Review platform audit</Link></div>
       <p className="mt-2 max-w-3xl text-sm leading-7 text-white/50">
-        This dashboard currently exposes only aggregate platform counts. Audited support access,
-        security-event review, backup verification and platform settings are planned before production operations are enabled.
+        This dashboard exposes aggregate platform counts and a read-only platform audit view.
+        Direct gym/member record access, support impersonation, backup operations and platform settings remain disabled.
       </p>
       <p className="mt-4 text-xs text-[#b6f36a]">Sensitive gym-level access remains disabled in this milestone.</p>
     </section>
