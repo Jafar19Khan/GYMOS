@@ -26,8 +26,8 @@
 - [x] Audit entries for member, staff, permission, plan, membership and payment changes
 - [x] Single-use, expiring invitation tokens; secure password activation and invitation re-issue/revocation
 - [ ] Provider-backed invitation email delivery
-- [ ] Member profile editing, search, pagination, export and deletion lifecycle
-- [ ] Staff suspension/reactivation and staff invitation lifecycle
+- [x] Permission-checked member profile editing for contact and emergency-contact details
+- [x] Staff suspension/reactivation with session revocation; invitation-pending staff remain activation-only
 - [ ] Refund/adjustment workflows, receipts and date-range finance reconciliation
 - [x] Manual attendance with active-membership validation and duplicate same-day protection
 - [ ] QR attendance
