@@ -228,7 +228,7 @@ export function GymClassCreateForm() {
   return <section className="surface rounded-2xl p-5 md:p-6">
     <p className="eyebrow">Class schedule</p>
     <h2 className="mt-2 text-lg font-extrabold">Schedule a class</h2>
-    <p className="mt-2 text-xs leading-5 text-white/40">Times are interpreted in the gym's configured timezone. Published classes become available to members with an active membership.</p>
+    <p className="mt-2 text-xs leading-5 text-white/40">Times are interpreted in the the gym configured timezone. Published classes become available to members with an active membership.</p>
     <form action={action} className="mt-5 grid gap-4 md:grid-cols-2">
       <div className="md:col-span-2"><Field label="Class name" name="name" required placeholder="Strength & conditioning" /></div>
       <Field label="Starts at" name="startsAt" type="datetime-local" required />
