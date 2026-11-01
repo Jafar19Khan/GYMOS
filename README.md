@@ -2,58 +2,62 @@
 
 **A premium gym website and gym operations platform.**
 
-GYMOS combines a public-facing gym website with a secure management application for owners, staff and members. The first release targets a single gym while keeping tenant boundaries explicit so a future multi-gym SaaS evolution does not require a rewrite.
+GYMOS combines a public-facing gym website with a secure management application for owners, staff and members. The first release targets one gym, while gym-scoped records and server-side authorization prepare the foundation for future multi-gym SaaS growth.
 
-## Product goals
-
-- Premium, responsive and accessible fitness website.
-- Owner tools for members, memberships, attendance, classes, staff permissions, payment records, workouts, announcements and website content.
-- Member portal restricted to each member's own information.
-- Separate platform operations access for super administrators.
-- Reproducible local development with Docker and automated GitHub Actions checks.
-- AWS deployment only after account eligibility and strict ₹0 feasibility review. No cloud resources are created by this bootstrap.
-
-## Roles
+## Product roles
 
 | Role | Scope |
 | --- | --- |
-| `super_admin` | Platform settings, audited support access, security events and operational health |
-| `owner` | Gym settings, staff permissions, members, plans, attendance, classes, finance entries and CMS |
-| `member` | Own profile, membership, attendance, receipts, bookings and assigned fitness plans |
+| `SUPER_ADMIN` | Platform operations, audited support access, security events and operational health |
+| `OWNER` | Gym settings, staff permissions, members, plans, attendance, classes, finance records and website CMS |
+| `MEMBER` | Own profile, membership, attendance, receipts, bookings and assigned fitness plans |
 
-Trainer, receptionist, accountant and manager are owner-managed permission sets, not separate application roles.
+Trainer, receptionist, accountant and manager are owner-managed permission sets, not additional top-level roles.
 
 ## Stack
 
-Next.js App Router, TypeScript, Tailwind CSS, Framer Motion, PostgreSQL/Prisma (planned), Docker Compose, GitHub Actions and Terraform. The initial application remains a modular Next.js codebase; separate services will be introduced only when justified.
+Next.js App Router, TypeScript, Tailwind CSS, Framer Motion, PostgreSQL, Prisma, Docker Compose, GitHub Actions and Terraform. The application is a modular Next.js codebase; a separate backend service will only be introduced if the product requires it.
 
 ## Repository map
 
-- `frontend/` — Next.js application
-- `backend/` — domain/API boundary notes
+- `src/` — Next.js application, route handlers, domain and auth services
+- `prisma/` — relational schema, initial migration and bootstrap seed
+- `backend/` — domain-boundary design notes
 - `docker/` — local container orchestration
-- `infrastructure/terraform/` — infrastructure as code, not automatically applied
-- `.github/workflows/` — CI, security and Terraform validation
-- `docs/` — architecture, security, roadmap, design and cost gate
-- `tests/` — cross-domain test strategy
+- `infrastructure/terraform/` — IaC baseline; never auto-applied
+- `.github/workflows/` — CI, dependency audit and Terraform validation
+- `docs/` — architecture, security, roadmap, design, cost and operations notes
+- `tests/` — automated test strategy and auth-policy smoke tests
 
-## Run locally
+## Run locally with Docker
 
-Requirements: Docker Desktop and Docker Compose v2.
+Requirements: Docker Desktop, Docker Compose v2, Node.js 22 and npm 10+.
 
 1. Copy `.env.example` to `.env`.
-2. Change `POSTGRES_PASSWORD` and make its value match the password in `DATABASE_URL`.
-3. Run `docker compose -f docker/compose.yaml up --build`.
-4. Open http://localhost:3000.
+2. Set a strong local `POSTGRES_PASSWORD`; use the same password in both `DATABASE_URL` and `DATABASE_URL_DOCKER`. Keep the host URL pointed at `localhost` and the Docker URL pointed at `db`.
+3. Run `docker compose -f docker/compose.yaml up --build -d`. The web container waits for PostgreSQL, applies committed Prisma migrations, then starts Next.js.
+4. To create your first owner account, fill `BOOTSTRAP_OWNER_EMAIL` and `BOOTSTRAP_OWNER_PASSWORD` in `.env`. Optionally set the Super Admin values too.
+5. On your host, run `npm install` and then `npm run db:seed`. The seed only creates accounts when both email and password are explicitly supplied; it never creates a default password.
+6. Open http://localhost:3000. Sign in at /login.
 
-For frontend scripts, use Node 22: `npm ci`, `npm run lint`, `npm run typecheck`, `npm run test`, `npm run build`.
+To run Next.js directly on your host instead of in Docker, start only the database with `docker compose -f docker/compose.yaml up -d db`, then use `npm install`, `npm run db:generate`, `npm run db:migrate` and `npm run dev`.
 
-## Security principles
+## Authentication and security
 
-Server-side authorization, gym-scoped records, member data isolation, audited sensitive actions, append-only financial history, transactional class bookings, separate private/public media access and no committed secrets. No payment gateway or cloud deployment is enabled in this foundation.
+Passwords are bcrypt-hashed. Login creates a cryptographically random opaque session token; only its SHA-256 hash is stored in PostgreSQL, while the browser receives an HttpOnly, SameSite cookie. Sessions expire after seven days and suspended users are rejected on subsequent requests.
 
-See [architecture](docs/ARCHITECTURE.md), [security](docs/SECURITY.md), [cost gate](docs/COST-GATE.md), [roadmap](docs/ROADMAP.md) and [operations](docs/OPERATIONS.md).
+The three top-level roles are enforced on the server. Gym staff accounts use the Owner workspace but receive only explicitly granted permissions; the primary gym owner has the full gym permission set. Members can query only records associated with their own user ID. Public self-registration is disabled; privileged accounts are created by an operator-controlled seed process.
+
+This is a security foundation, not a production security certification. Login throttling, MFA, account recovery, complete audit coverage, comprehensive member/tenant isolation tests and security review remain required before public production use.
+
+## Cost gate
+
+The AWS account and Mumbai-region usage must be reviewed against current account credits, service limits, usage and pricing before any resource is created. Strict ₹0 is a hard constraint. See [AWS cost gate](docs/COST-GATE.md). Local Docker is the default while the review is unresolved.
 
 ## Delivery status
 
-This commit establishes the product specification, visual foundation, local container setup and CI scaffolding. Production authentication, database migrations and core gym workflows are not yet implemented and must not be treated as complete.
+Implemented: public landing page, local container setup, database schema/migration, bootstrap seed, session login/logout, role routing, role-protected dashboard summaries, staff permission policy and CI checks.
+
+Still pending: member/staff CRUD, memberships, reconciled payment ledger workflows, QR attendance, transactional class booking/waitlist, workouts, diet/progress, public CMS/media, MFA/rate limits, comprehensive integration/E2E tests, backup/restore drills and deployment. This project is not production-ready yet.
+
+See [architecture](docs/ARCHITECTURE.md), [security](docs/SECURITY.md), [roadmap](docs/ROADMAP.md), [design system](docs/DESIGN-SYSTEM.md) and [local operations](docs/OPERATIONS.md).
