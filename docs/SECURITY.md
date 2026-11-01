@@ -7,6 +7,9 @@
 - Browser sessions use HttpOnly, SameSite=Lax cookies, Secure in production, path scoping and a seven-day expiry.
 - Suspended users are rejected when a session is read.
 - Top-level role checks happen on the server. Gym staff use explicit permission grants; the primary gym owner is the only account with automatic full gym permissions.
+- Staff may delegate only permissions they already hold; elevated permission grants are restricted to the primary gym owner.
+- Owner actions verify the signed-in account's gym and required permission before creating member/staff records, changing permissions/status, assigning memberships or recording payment entries.
+- Sensitive operational changes create audit entries within the same database transaction as the write.
 - Login errors are generic and do not reveal whether an email exists.
 - Public self-registration is disabled. Bootstrap credentials are operator-supplied and are never committed.
 
@@ -14,9 +17,10 @@
 
 - Login throttling/rate limiting is not implemented yet.
 - MFA and secure account recovery are not implemented yet.
-- Authentication sign-in/sign-out events are written to the audit table. Audit coverage for finance, permission changes, exports, deletion and support access, plus review workflows, is still pending.
+- Member/staff records created from the Owner workspace are `INVITED`; secure invitation delivery and password activation are not implemented yet.
+- Finance module currently records `CHARGE` entries only; refund/adjustment workflows and period reconciliation remain pending.
 - Every future server action/API must verify gym scope and member ownership; dashboard isolation alone is not sufficient.
-- Add integration tests for cross-gym access, IDOR, suspended users, session expiry, permission changes and concurrent writes.
+- Add integration tests for cross-gym access, IDOR, suspended users, session expiry, permission changes, duplicate requests and concurrent writes.
 - Add security headers/CSP review, dependency and image scanning, secret handling, backup/restore and incident drills.
 
 ## Identity and access
@@ -40,7 +44,8 @@
 
 - Never store card numbers or CVV.
 - First release records payments entered by authorized staff; no payment gateway is enabled.
-- Use append-only entries for payment, refund and adjustment history.
+- Payment entries are recorded as append-only charge events; no arbitrary edit/delete UI is available.
+- Refunds and adjustments require separate permission-aware ledger workflows before use.
 - Record actor, timestamp, amount, currency, method, reference and reason; derive balances from ledger entries.
 
 ## Operations
