@@ -12,12 +12,16 @@
 - Sensitive operational changes create audit entries within the same database transaction as the write.
 - Login errors are generic and do not reveal whether an email exists.
 - Public self-registration is disabled. Bootstrap credentials are operator-supplied and are never committed.
+- Member and staff activation uses cryptographically random 256-bit bearer tokens; only SHA-256 hashes are stored in PostgreSQL.
+- Invitation links expire after 48 hours, are single-use, and previous unused links are revoked when a new one is issued.
+- Activation locks the account and invitation rows, re-checks invitation validity, sets a bcrypt-hashed password and activates the account in one transaction.
+- Invitation acceptance revokes any existing sessions for the account and writes an audit event without recording the token or password.
 
 ## Required before production
 
 - Login throttling/rate limiting is not implemented yet.
 - MFA and secure account recovery are not implemented yet.
-- Member/staff records created from the Owner workspace are `INVITED`; secure invitation delivery and password activation are not implemented yet.
+- Invitation email delivery is not configured. Owners must copy the generated one-time activation link and deliver it to the intended recipient through a trusted channel; the link itself is not stored in plaintext.
 - Finance module currently records `CHARGE` entries only; refund/adjustment workflows and period reconciliation remain pending.
 - Every future server action/API must verify gym scope and member ownership; dashboard isolation alone is not sufficient.
 - Add integration tests for cross-gym access, IDOR, suspended users, session expiry, permission changes, duplicate requests and concurrent writes.
