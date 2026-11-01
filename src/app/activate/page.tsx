@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Dumbbell, ShieldCheck } from "lucide-react";
-import { Role, UserStatus } from "@prisma/client";
 import ActivationForm from "./activation-form";
-import { hashInvitationToken, isInvitationTokenFormat } from "@/lib/auth/invitations";
+import { hashInvitationToken, isInvitationTokenFormat, isInvitationUsable } from "@/lib/auth/invitations";
 import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = {
@@ -35,15 +34,7 @@ export default async function ActivatePage({ searchParams }: PageProps) {
     },
   }) : null;
 
-  const usable = Boolean(
-    invitation &&
-    invitation.user.gymId === invitation.gymId &&
-    invitation.user.status === UserStatus.INVITED &&
-    invitation.consumedAt === null &&
-    invitation.revokedAt === null &&
-    invitation.expiresAt > new Date() &&
-    (invitation.user.role === Role.MEMBER || (invitation.user.role === Role.OWNER && !invitation.user.isGymOwner))
-  );
+  const usable = isInvitationUsable(invitation, new Date());
 
   return <main className="flex min-h-screen items-center justify-center px-6 py-12">
     <section className="w-full max-w-md">
