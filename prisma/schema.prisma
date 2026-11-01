@@ -17,6 +17,7 @@ enum UserStatus {
   ACTIVE
   SUSPENDED
   INVITED
+  ARCHIVED
 }
 
 enum MembershipStatus {
