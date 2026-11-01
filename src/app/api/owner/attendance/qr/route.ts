@@ -11,10 +11,11 @@ export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   const actor = await getCurrentUser();
-  if (!actor || actor.role !== Role.OWNER || !actor.gymId) {
+  if (!actor || actor.role !== Role.OWNER || !gymId) {
     return NextResponse.json({ error: "Owner or permitted staff sign-in required." }, { status: 401 });
   }
-  if (!(await hasGymPermission(actor.id, actor.gymId, "attendance.manage"))) {
+  const gymId = actor.gymId;
+  if (!(await hasGymPermission(actor.id, gymId, "attendance.manage"))) {
     return NextResponse.json({ error: "Attendance management permission required." }, { status: 403 });
   }
 
@@ -30,7 +31,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "QR attendance is not configured." }, { status: 503 });
   }
   const payload = verifyAttendanceQrToken(token, secret);
-  if (!payload || payload.gymId !== actor.gymId) {
+  if (!payload || payload.gymId !== gymId) {
     return NextResponse.json({ error: "QR code is invalid, expired or belongs to another gym." }, { status: 400 });
   }
 
@@ -47,20 +48,20 @@ export async function POST(request: Request) {
       const locked = await tx.$queryRaw<Array<{ id: string }>>`
         SELECT "id" FROM "users"
         WHERE "id" = ${payload.memberId}::uuid
-          AND "gymId" = ${actor.gymId}::uuid
+          AND "gymId" = ${gymId}::uuid
         FOR UPDATE
       `;
       if (!locked.length) throw new Error("MEMBER_NOT_FOUND");
 
       const member = await tx.user.findFirst({
-        where: { id: payload.memberId, gymId: actor.gymId, role: Role.MEMBER, status: UserStatus.ACTIVE },
+        where: { id: payload.memberId, gymId: gymId, role: Role.MEMBER, status: UserStatus.ACTIVE },
         select: { id: true, name: true },
       });
       if (!member) throw new Error("MEMBER_NOT_ACTIVE");
 
       const membership = await tx.membership.findFirst({
         where: {
-          gymId: actor.gymId,
+          gymId: gymId,
           memberId: member.id,
           status: MembershipStatus.ACTIVE,
           startDate: { lte: todayDate },
@@ -71,7 +72,7 @@ export async function POST(request: Request) {
       if (!membership) throw new Error("NO_ACTIVE_MEMBERSHIP");
 
       const priorRecords = await tx.attendance.findMany({
-        where: { gymId: actor.gymId, memberId: member.id, checkedInAt: { gte: rangeStart, lt: rangeEnd } },
+        where: { gymId: gymId, memberId: member.id, checkedInAt: { gte: rangeStart, lt: rangeEnd } },
         select: { checkedInAt: true },
       });
       if (priorRecords.some((item) => dateOnlyInTimeZone(item.checkedInAt, timeZone) === today)) {
@@ -80,7 +81,7 @@ export async function POST(request: Request) {
 
       const record = await tx.attendance.create({
         data: {
-          gymId: actor.gymId!,
+          gymId: gymId!,
           memberId: member.id,
           recordedById: actor.id,
           method: AttendanceMethod.QR,
@@ -91,7 +92,7 @@ export async function POST(request: Request) {
       await tx.auditLog.create({
         data: {
           actorId: actor.id,
-          gymId: actor.gymId,
+          gymId: gymId,
           event: "attendance.qr_checked_in",
           resourceType: "attendance",
           resourceId: record.id,
