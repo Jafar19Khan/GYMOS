@@ -8,7 +8,10 @@
 - Suspended users are rejected when a session is read.
 - Top-level role checks happen on the server. Gym staff use explicit permission grants; the primary gym owner is the only account with automatic full gym permissions.
 - Staff may delegate only permissions they already hold; elevated permission grants are restricted to the primary gym owner.
-- Owner actions verify the signed-in account's gym and required permission before creating member/staff records, changing permissions/status, assigning memberships or recording payment entries.
+- Owner actions verify the signed-in account's gym and required permission before creating member/staff records, changing profile data, changing permissions/status, assigning memberships or recording payment entries.
+- Member profile updates are gym-scoped and audited; email changes revoke existing sessions and revoke outstanding invitations for pending accounts.
+- Staff suspension is limited to staff accounts in the same gym, blocks self-suspension and revokes active sessions. Re-activation requires an explicit staff manager action.
+- Staff permission changes revoke existing staff sessions so the next login uses the updated permission set.
 - Sensitive operational changes create audit entries within the same database transaction as the write.
 - Login errors are generic and do not reveal whether an email exists.
 - Public self-registration is disabled. Bootstrap credentials are operator-supplied and are never committed.
