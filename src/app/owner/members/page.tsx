@@ -1,6 +1,6 @@
 import { Role, UserStatus } from "@prisma/client";
 import AppShell from "@/app/components/app-shell";
-import { MemberCreateForm, MemberStatusForm } from "@/app/owner/components/operation-forms";
+import { IssueInvitationForm, MemberCreateForm, MemberStatusForm } from "@/app/owner/components/operation-forms";
 import { requireRole } from "@/lib/auth/guards";
 import { hasGymPermission } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/prisma";
@@ -23,7 +23,7 @@ export default async function MembersPage() {
     hasGymPermission(user.id, user.gymId, "members.suspend"),
   ]);
 
-  return <AppShell eyebrow="Gym operations / People" title="Members" description="Manage member profiles and account status. New records are invitation-pending until the secure activation flow is available." userName={user.name} roleLabel="Owner / Staff">
+  return <AppShell eyebrow="Gym operations / People" title="Members" description="Manage member profiles and account status. New records receive a single-use activation link that the owner must share securely." userName={user.name} roleLabel="Owner / Staff">
     <div className="grid gap-6 xl:grid-cols-[minmax(280px,.75fr)_minmax(0,1.5fr)]">
       {canCreate && <MemberCreateForm />}
       <section className="surface rounded-2xl p-5 md:p-6">
@@ -44,12 +44,13 @@ export default async function MembersPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <span className={member.status === UserStatus.ACTIVE ? "rounded-full bg-emerald-400/10 px-3 py-1 text-[10px] font-bold text-emerald-300" : "rounded-full bg-amber-400/10 px-3 py-1 text-[10px] font-bold text-amber-200"}>{member.status}</span>
                   {canSuspend && member.status !== UserStatus.INVITED && <MemberStatusForm memberId={member.id} nextStatus={member.status === UserStatus.SUSPENDED ? "ACTIVE" : "SUSPENDED"} />}
+                  {member.status === UserStatus.INVITED && canCreate && <IssueInvitationForm targetId={member.id} accountType="MEMBER" />}
                 </div>
               </div>
             </article>;
           })}
         </div>}
-        <p className="mt-5 text-[11px] leading-5 text-white/35">Showing latest 100 records. Search, pagination, invitations and secure password activation are follow-up tasks.</p>
+        <p className="mt-5 text-[11px] leading-5 text-white/35">Showing latest 100 records. Search, pagination and member lifecycle management remain follow-up work.</p>
       </section>
     </div>
   </AppShell>;
