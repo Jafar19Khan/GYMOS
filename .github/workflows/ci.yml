@@ -15,8 +15,24 @@ concurrency:
 
 jobs:
   quality:
-    name: Lint, typecheck, test and build
+    name: Validate, lint, typecheck, test and build
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: gymos
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: gymos
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U gymos -d gymos"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://gymos:ci-only-password@localhost:5432/gymos?schema=public
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -24,6 +40,12 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: npm install
+      - name: Validate Prisma schema
+        run: npx prisma validate
+      - name: Generate Prisma client
+        run: npm run db:generate
+      - name: Apply database migrations
+        run: npm run db:deploy
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test
