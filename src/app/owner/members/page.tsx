@@ -1,6 +1,6 @@
 import { Role, UserStatus } from "@prisma/client";
 import AppShell from "@/app/components/app-shell";
-import { IssueInvitationForm, MemberCreateForm, MemberStatusForm } from "@/app/owner/components/operation-forms";
+import { IssueInvitationForm, MemberCreateForm, MemberProfileForm, MemberStatusForm } from "@/app/owner/components/operation-forms";
 import { requireRole } from "@/lib/auth/guards";
 import { hasGymPermission } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/prisma";
@@ -12,7 +12,7 @@ export default async function MembersPage() {
   const canRead = await hasGymPermission(user.id, user.gymId, "members.read");
   if (!canRead) return <AppShell eyebrow="Gym operations" title="Members" description="You do not have permission to view member records." userName={user.name} roleLabel="Gym staff" />;
 
-  const [members, canCreate, canSuspend] = await Promise.all([
+  const [members, canWrite, canSuspend] = await Promise.all([
     prisma.user.findMany({
       where: { gymId: user.gymId, role: Role.MEMBER },
       include: { memberProfile: true, memberships: { orderBy: { endDate: "desc" }, take: 1, include: { plan: true } } },
@@ -25,7 +25,7 @@ export default async function MembersPage() {
 
   return <AppShell eyebrow="Gym operations / People" title="Members" description="Manage member profiles and account status. New records receive a single-use activation link that the owner must share securely." userName={user.name} roleLabel="Owner / Staff">
     <div className="grid gap-6 xl:grid-cols-[minmax(280px,.75fr)_minmax(0,1.5fr)]">
-      {canCreate && <MemberCreateForm />}
+      {canWrite && <MemberCreateForm />}
       <section className="surface rounded-2xl p-5 md:p-6">
         <div className="mb-5 flex items-center justify-between gap-3">
           <h2 className="text-lg font-extrabold">Member directory</h2>
@@ -44,9 +44,18 @@ export default async function MembersPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <span className={member.status === UserStatus.ACTIVE ? "rounded-full bg-emerald-400/10 px-3 py-1 text-[10px] font-bold text-emerald-300" : "rounded-full bg-amber-400/10 px-3 py-1 text-[10px] font-bold text-amber-200"}>{member.status}</span>
                   {canSuspend && member.status !== UserStatus.INVITED && <MemberStatusForm memberId={member.id} nextStatus={member.status === UserStatus.SUSPENDED ? "ACTIVE" : "SUSPENDED"} />}
-                  {member.status === UserStatus.INVITED && canCreate && <IssueInvitationForm targetId={member.id} accountType="MEMBER" />}
+                  {member.status === UserStatus.INVITED && canWrite && <IssueInvitationForm targetId={member.id} accountType="MEMBER" />}
                 </div>
               </div>
+              {canWrite && <MemberProfileForm
+                memberId={member.id}
+                name={member.name}
+                email={member.email}
+                phone={member.memberProfile?.phone ?? ""}
+                emergencyContactName={member.memberProfile?.emergencyContactName ?? ""}
+                emergencyContactPhone={member.memberProfile?.emergencyContactPhone ?? ""}
+                dateOfBirth={member.memberProfile?.dateOfBirth?.toISOString().slice(0, 10) ?? ""}
+              />}
             </article>;
           })}
         </div>}
