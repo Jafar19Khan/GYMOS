@@ -15,6 +15,26 @@ export type ActionState = {
   message: string;
 };
 
+async function canDelegatePermissions(
+  userId: string,
+  gymId: string,
+  isGymOwner: boolean,
+  requested: readonly string[],
+): Promise<boolean> {
+  if (isGymOwner) return true;
+
+  // Staff can delegate only non-privileged permissions already granted to themselves.
+  const restricted = new Set(["staff.manage", "members.delete", "members.export", "settings.manage"]);
+  if (requested.some((permission) => restricted.has(permission))) return false;
+
+  const ownGrants = await prisma.staffPermission.findMany({
+    where: { userId, gymId },
+    select: { permission: true },
+  });
+  const allowed = new Set(ownGrants.map((grant) => grant.permission));
+  return requested.every((permission) => allowed.has(permission));
+}
+
 async function ownerContext(permission: (typeof GYM_PERMISSIONS)[number]) {
   const user = await getCurrentUser();
   if (!user || user.role !== Role.OWNER || !user.gymId) {
@@ -163,6 +183,9 @@ export async function createStaffAction(
     permissions: formData.getAll("permissions").filter((value): value is string => typeof value === "string"),
   });
   if (!parsed.success) return { ok: false, message: "Enter a valid name, email and at least one allowed permission." };
+  if (!(await canDelegatePermissions(context.user.id, context.gymId, context.user.isGymOwner, parsed.data.permissions))) {
+    return { ok: false, message: "You can only grant permissions you hold; elevated permissions require the primary gym owner." };
+  }
 
   const existing = await prisma.user.findUnique({ where: { email: parsed.data.email }, select: { id: true } });
   if (existing) return { ok: false, message: "An account with this email already exists." };
@@ -218,6 +241,9 @@ export async function updateStaffPermissionsAction(
   const permissions = formData.getAll("permissions").filter((value): value is string => typeof value === "string");
   const parsedPermissions = z.array(z.enum(GYM_PERMISSIONS)).max(GYM_PERMISSIONS.length).safeParse(permissions);
   if (!staffId || !parsedPermissions.success) return { ok: false, message: "Invalid staff permission request." };
+  if (!(await canDelegatePermissions(context.user.id, context.gymId, context.user.isGymOwner, parsedPermissions.data))) {
+    return { ok: false, message: "You can only grant permissions you hold; elevated permissions require the primary gym owner." };
+  }
 
   const staff = await prisma.user.findFirst({
     where: { id: staffId, gymId: context.gymId, role: Role.OWNER, isGymOwner: false },
