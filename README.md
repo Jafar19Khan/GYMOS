@@ -22,11 +22,16 @@ Next.js App Router, TypeScript, Tailwind CSS, Framer Motion, PostgreSQL, Prisma,
 
 - `src/` — Next.js application, route handlers, domain and auth services
 - `prisma/` — relational schema, migrations and bootstrap seed
-- `docker/` — local container orchestration
-- `infrastructure/terraform/` — IaC baseline; never auto-applied
+- `docker/` — optional local container orchestration
+- `infrastructure/terraform/` — AWS EC2 evaluation infrastructure; manually planned/applied only
+- `scripts/` — PowerShell AWS SSM deploy/connect and local backup/restore helpers
 - `.github/workflows/` — CI, dependency audit and Terraform validation
-- `docs/` — Windows runbook, architecture, security, roadmap, design, cost and operations notes
+- `docs/` — AWS PowerShell runbook, local Docker runbook, architecture, security, roadmap, design, cost and operations notes
 - `tests/` — auth, invitation, date and money-conversion unit tests
+
+## Run on AWS without Docker Desktop
+
+For a Windows PC that cannot handle Docker Desktop, use the [AWS PowerShell deployment runbook](docs/AWS-DEPLOYMENT-RUNBOOK.md). It provisions one EC2 host with Terraform and deploys Node.js/PostgreSQL/Nginx through AWS Systems Manager. Review [AWS cost gate](docs/COST-GATE.md) and the full Terraform plan before creating any resources. This is an evaluation environment, not a production deployment.
 
 ## Run locally with Docker
 
