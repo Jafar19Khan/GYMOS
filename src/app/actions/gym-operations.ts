@@ -8,6 +8,7 @@ import { z } from "zod";
 import { GYM_PERMISSIONS, requireGymPermission } from "@/lib/auth/permissions";
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
+import { parseRupeesToPaise } from "@/lib/operations/money";
 
 export type ActionState = {
   ok: boolean;
@@ -269,8 +270,8 @@ export async function createMembershipPlanAction(
   });
   if (!parsed.success) return { ok: false, message: "Enter a plan name, valid duration and price." };
 
-  const pricePaise = Math.round(Number(parsed.data.price) * 100);
-  if (!Number.isSafeInteger(pricePaise) || pricePaise < 1) {
+  const pricePaise = parseRupeesToPaise(parsed.data.price);
+  if (pricePaise === null) {
     return { ok: false, message: "Plan price must be greater than zero." };
   }
 
@@ -368,40 +369,52 @@ export async function assignMembershipAction(
     ? MembershipStatus.ACTIVE
     : MembershipStatus.UPCOMING;
 
-  const overlapping = await prisma.membership.findFirst({
-    where: {
-      gymId: context.gymId,
-      memberId: member.id,
-      status: { in: [MembershipStatus.ACTIVE, MembershipStatus.UPCOMING, MembershipStatus.FROZEN] },
-      startDate: { lte: endDate },
-      endDate: { gte: startDate },
-    },
-    select: { id: true },
-  });
-  if (overlapping) return { ok: false, message: "This member already has a membership overlapping the selected dates." };
+  try {
+    await prisma.$transaction(async (tx) => {
+      // Serialize membership assignments for this member to prevent overlapping rows under concurrent requests.
+      await tx.$queryRaw`SELECT "id" FROM "users" WHERE "id" = ${member.id}::uuid FOR UPDATE`;
 
-  await prisma.$transaction(async (tx) => {
-    const membership = await tx.membership.create({
-      data: {
-        gymId: context.gymId,
-        memberId: member.id,
-        planId: plan.id,
-        startDate,
-        endDate,
-        status,
-      },
-    });
-    await tx.auditLog.create({
-      data: {
-        actorId: context.user.id,
-        gymId: context.gymId,
-        event: "membership.assigned",
-        resourceType: "membership",
-        resourceId: membership.id,
-        metadata: { memberId: member.id, planId: plan.id },
-      },
-    });
-  });
+      const overlapping = await tx.membership.findFirst({
+        where: {
+          gymId: context.gymId,
+          memberId: member.id,
+          status: { in: [MembershipStatus.ACTIVE, MembershipStatus.UPCOMING, MembershipStatus.FROZEN] },
+          startDate: { lte: endDate },
+          endDate: { gte: startDate },
+        },
+        select: { id: true },
+      });
+      if (overlapping) {
+        throw new Error("MEMBERSHIP_OVERLAP");
+      }
+
+      const membership = await tx.membership.create({
+        data: {
+          gymId: context.gymId,
+          memberId: member.id,
+          planId: plan.id,
+          startDate,
+          endDate,
+          status,
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorId: context.user.id,
+          gymId: context.gymId,
+          event: "membership.assigned",
+          resourceType: "membership",
+          resourceId: membership.id,
+          metadata: { memberId: member.id, planId: plan.id },
+        },
+      });
+    }, { isolationLevel: "Serializable" });
+  } catch (error) {
+    if (error instanceof Error && error.message === "MEMBERSHIP_OVERLAP") {
+      return { ok: false, message: "This member already has a membership overlapping the selected dates." };
+    }
+    return { ok: false, message: "Membership could not be assigned. Please retry or check the membership record." };
+  }
 
   revalidatePath("/owner");
   revalidatePath("/owner/members");
@@ -433,8 +446,8 @@ export async function recordPaymentAction(
   });
   if (!parsed.success) return { ok: false, message: "Enter a member, valid amount and payment method." };
 
-  const amountPaise = Math.round(Number(parsed.data.amount) * 100);
-  if (!Number.isSafeInteger(amountPaise) || amountPaise < 1) return { ok: false, message: "Payment amount must be greater than zero." };
+  const amountPaise = parseRupeesToPaise(parsed.data.amount);
+  if (amountPaise === null) return { ok: false, message: "Payment amount must be greater than zero." };
 
   const member = await prisma.user.findFirst({
     where: { id: parsed.data.memberId, gymId: context.gymId, role: Role.MEMBER },
