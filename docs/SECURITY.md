@@ -12,6 +12,9 @@
 - Member profile updates are gym-scoped and audited; email changes revoke existing sessions and revoke outstanding invitations for pending accounts.
 - Staff suspension is limited to staff accounts in the same gym, blocks self-suspension and revokes active sessions. Re-activation requires an explicit staff manager action.
 - Staff permission changes revoke existing staff sessions so the next login uses the updated permission set.
+- Member archive requires the dedicated `members.delete` permission, anonymizes direct profile identifiers, revokes sessions and invitations, and retains membership/financial entries for reconciliation.
+- Member CSV export requires `members.export`, omits archived records, applies the same gym-scoped search filter, and caps a single export at 5,000 rows.
+- Refunds and adjustments are immutable linked entries against an original charge; row locking serializes concurrent corrections and prevents refunds or decreases beyond the remaining charge balance.
 - Sensitive operational changes create audit entries within the same database transaction as the write.
 - Login errors are generic and do not reveal whether an email exists.
 - Public self-registration is disabled. Bootstrap credentials are operator-supplied and are never committed.
@@ -52,7 +55,7 @@
 - Never store card numbers or CVV.
 - First release records payments entered by authorized staff; no payment gateway is enabled.
 - Payment entries are recorded as append-only charge events; no arbitrary edit/delete UI is available.
-- Refunds and adjustments require separate permission-aware ledger workflows before use.
+- Refunds and adjustments are recorded as separate append-only ledger events; the original charge is never overwritten.
 - Record actor, timestamp, amount, currency, method, reference and reason; derive balances from ledger entries.
 
 ## Operations
