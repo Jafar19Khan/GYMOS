@@ -7,7 +7,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { GYM_PERMISSIONS, requireGymPermission } from "@/lib/auth/permissions";
 import { getCurrentUser } from "@/lib/auth/session";
-import { canDelegateGymPermissions } from "@/lib/auth/policy";
+import { canDelegateGymPermissions, canTransitionStaffStatus } from "@/lib/auth/policy";
 import { prisma } from "@/lib/prisma";
 import { parseRupeesToPaise } from "@/lib/operations/money";
 import { addCalendarDays, dateOnlyInTimeZone, localDateTimeToUtc } from "@/lib/operations/dates";
@@ -261,6 +261,7 @@ export async function updateMemberProfileAction(
 
   revalidatePath("/owner/members");
   revalidatePath("/owner");
+  revalidatePath("/member");
   return { ok: true, message: "Member profile updated." };
 }
 
@@ -425,8 +426,7 @@ export async function updateStaffStatusAction(
       });
       if (!staff) throw new Error("STAFF_NOT_FOUND");
       if (staff.id === context.user.id) throw new Error("SELF_STATUS_CHANGE");
-      if (staff.status === UserStatus.INVITED) throw new Error("STAFF_INVITED");
-      if (staff.status === nextStatus) throw new Error("STATUS_UNCHANGED");
+      if (!canTransitionStaffStatus(staff.status, nextStatus)) throw new Error("STAFF_STATUS_TRANSITION");
 
       await tx.user.update({
         where: { id: staff.id },
@@ -450,8 +450,7 @@ export async function updateStaffStatusAction(
     const messages: Record<string, string> = {
       STAFF_NOT_FOUND: "Staff account not found in your gym.",
       SELF_STATUS_CHANGE: "You cannot suspend or reactivate your own account.",
-      STAFF_INVITED: "Invitation-pending staff must activate through their secure invitation link.",
-      STATUS_UNCHANGED: "Staff account already has this status.",
+      STAFF_STATUS_TRANSITION: "Only active or suspended staff can be toggled. Invitation-pending staff must use their secure invitation link.",
     };
     return { ok: false, message: messages[reason] ?? "Staff status could not be updated. Please retry." };
   }
