@@ -9,7 +9,8 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function LoginPage() {
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ activated?: string }> }) {
+  const params = await searchParams;
   return (
     <main className="grid min-h-screen lg:grid-cols-[1fr_.85fr]">
       <section className="relative hidden flex-col justify-between overflow-hidden bg-[#111612] p-12 lg:flex">
@@ -34,6 +35,7 @@ export default function LoginPage() {
             <h2 className="mt-3 text-3xl font-black tracking-tight">Sign in to GYMOS</h2>
             <p className="mt-2 text-sm leading-6 text-white/50">Use the account credentials provided by your gym or platform administrator.</p>
           </div>
+          {params.activated === "1" && <p role="status" className="mb-5 rounded-lg border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-sm text-emerald-200">Your account is active. Sign in with the password you just created.</p>}
           <LoginForm />
           <p className="mt-8 text-center text-xs leading-6 text-white/35">Access is invitation-only. Public self-registration is disabled for security.</p>
         </div>
