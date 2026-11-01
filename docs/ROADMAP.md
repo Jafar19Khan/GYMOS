@@ -24,7 +24,8 @@
 - [x] Membership plan creation, activation/deactivation and date-based member assignment
 - [x] Staff-entered payment charge records in integer paise
 - [x] Audit entries for member, staff, permission, plan, membership and payment changes
-- [ ] Secure invitation delivery, account activation and password setup
+- [x] Single-use, expiring invitation tokens; secure password activation and invitation re-issue/revocation
+- [ ] Provider-backed invitation email delivery
 - [ ] Member profile editing, search, pagination, export and deletion lifecycle
 - [ ] Staff suspension/reactivation and staff invitation lifecycle
 - [ ] Refund/adjustment workflows, receipts and date-range finance reconciliation
