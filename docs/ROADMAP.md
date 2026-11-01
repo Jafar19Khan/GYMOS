@@ -30,21 +30,25 @@
 - [x] Staff suspension/reactivation with session revocation; invitation-pending staff remain activation-only
 - [x] Linked refunds and signed adjustments, printable receipts and date-range finance reconciliation
 - [x] Manual attendance with active-membership validation and duplicate same-day protection
-- [ ] QR attendance
+- [x] Signed, 60-second QR attendance with same-day duplicate protection
 - [x] Class scheduling, member booking, transactional capacity and FIFO waitlist promotion
-- [ ] Audit event review UI and retention controls
+- [x] Gym-scoped audit event review UI
+- [ ] Audit retention policy and automated retention controls
 
 ## Milestone 3 — Fitness and content
 
-- [ ] Workout library, assignments and progress tracking
-- [ ] Diet plans and goal support with calculation assumptions
-- [ ] Public CMS, trainer/facility pages and gallery
+- [x] Text-based workout assignments, member session logs and progress measurements
+- [x] Member-specific nutrition targets with explicit non-medical disclaimer
+- [x] Text/contact CMS with published public gym page and membership plans
+- [ ] Trainer/facility profiles, image/video gallery and configurable media
 - [ ] Secure media upload and private member media
-- [ ] Announcements and notifications
+- [x] Published gym announcements in Owner and Member workspaces
+- [ ] Push/email/SMS notification delivery
 
 ## Milestone 4 — Quality and deployment readiness
 
-- [ ] Login rate limiting, MFA and account recovery
+- [x] Persistent login throttling (5 failed attempts per email/IP window, temporary lock)
+- [ ] MFA and secure account recovery
 - [ ] Accessibility, performance and end-to-end tests
 - [ ] Cross-gym/member isolation and concurrent-operation integration tests
 - [ ] Backup and restore drills
