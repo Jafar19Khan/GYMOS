@@ -14,17 +14,23 @@
 - [x] Password hashing, session model and operator-controlled bootstrap accounts
 - [x] Server-side role guards and staff permission policy
 - [x] Super Admin, Owner and Member dashboard starting pages
-- [x] Audit event data model
+- [x] Audit event data model and authentication audit events
 - [x] Auth validation and permission-policy unit tests
 
 ## Milestone 2 — Gym operations
 
-- [ ] Member and staff CRUD with permission-aware workflows
-- [ ] Membership plans, renewals, freezes and expiry
-- [ ] Manual payment ledger, receipts, refunds and reconciled reporting
-- [ ] Manual and QR attendance
-- [ ] Class schedule, transactional capacity and FIFO waitlist
-- [ ] Immutable audit-event write service and review UI
+- [x] Permission-checked member creation and account suspension/reactivation
+- [x] Staff account records and permission assignment/maintenance with non-escalation checks
+- [x] Membership plan creation, activation/deactivation and date-based member assignment
+- [x] Staff-entered payment charge records in integer paise
+- [x] Audit entries for member, staff, permission, plan, membership and payment changes
+- [ ] Secure invitation delivery, account activation and password setup
+- [ ] Member profile editing, search, pagination, export and deletion lifecycle
+- [ ] Staff suspension/reactivation and staff invitation lifecycle
+- [ ] Refund/adjustment workflows, receipts and date-range finance reconciliation
+- [ ] Manual/QR attendance
+- [ ] Class scheduling, transactional capacity and FIFO waitlist
+- [ ] Audit event review UI and retention controls
 
 ## Milestone 3 — Fitness and content
 
@@ -38,6 +44,7 @@
 
 - [ ] Login rate limiting, MFA and account recovery
 - [ ] Accessibility, performance and end-to-end tests
+- [ ] Cross-gym/member isolation and concurrent-operation integration tests
 - [ ] Backup and restore drills
 - [ ] Monitoring, alerting and incident runbooks
 - [ ] Account-specific cloud cost and eligibility review
