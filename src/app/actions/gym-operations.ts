@@ -552,7 +552,7 @@ export async function recordAttendanceAction(
       const lockedMember = await tx.$queryRaw<Array<{ id: string }>>`
         SELECT "id" FROM "users"
         WHERE "id" = ${parsed.data.memberId}::uuid
-          AND "gym_id" = ${context.gymId}::uuid
+          AND "gymId" = ${context.gymId}::uuid
         FOR UPDATE
       `;
       if (!lockedMember.length) throw new Error("MEMBER_NOT_FOUND");
@@ -733,7 +733,7 @@ export async function bookGymClassAction(
       const lockedClass = await tx.$queryRaw<Array<{ id: string }>>`
         SELECT "id" FROM "gym_classes"
         WHERE "id" = ${parsed.data.classId}::uuid
-          AND "gym_id" = ${user.gymId}::uuid
+          AND "gymId" = ${user.gymId}::uuid
         FOR UPDATE
       `;
       if (!lockedClass.length) throw new Error("CLASS_NOT_FOUND");
@@ -808,7 +808,7 @@ export async function cancelGymClassBookingAction(
       const lockedClass = await tx.$queryRaw<Array<{ id: string }>>`
         SELECT "id" FROM "gym_classes"
         WHERE "id" = ${parsed.data.classId}::uuid
-          AND "gym_id" = ${user.gymId}::uuid
+          AND "gymId" = ${user.gymId}::uuid
         FOR UPDATE
       `;
       if (!lockedClass.length) throw new Error("CLASS_NOT_FOUND");
