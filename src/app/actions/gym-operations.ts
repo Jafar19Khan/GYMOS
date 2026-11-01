@@ -304,7 +304,7 @@ export async function updateMemberStatusAction(
   if (!member) return { ok: false, message: "Member not found in your gym." };
   if (member.status === UserStatus.ARCHIVED) return { ok: false, message: "Archived member records cannot be reactivated." };
 
-  const nextStatus = statusText as UserStatus;
+  const nextStatus = statusText as "ACTIVE" | "SUSPENDED";
   if (member.status === UserStatus.INVITED && nextStatus === UserStatus.ACTIVE) {
     return { ok: false, message: "Invited accounts must activate using their secure invitation link." };
   }
