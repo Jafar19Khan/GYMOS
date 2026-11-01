@@ -46,12 +46,12 @@ function Notice({ state }: { state: ActionState }) {
   </div>;
 }
 
-function Field({ label, name, type = "text", required = false, placeholder, min, step }: {
-  label: string; name: string; type?: string; required?: boolean; placeholder?: string; min?: string; step?: string;
+function Field({ label, name, type = "text", required = false, placeholder, min, step, defaultValue, maxLength }: {
+  label: string; name: string; type?: string; required?: boolean; placeholder?: string; min?: string; step?: string; defaultValue?: string; maxLength?: number;
 }) {
   return <label className="block">
     <span className="mb-2 block text-xs font-semibold text-white/65">{label}</span>
-    <input name={name} type={type} required={required} placeholder={placeholder} min={min} step={step}
+    <input name={name} type={type} required={required} placeholder={placeholder} min={min} step={step} defaultValue={defaultValue} maxLength={maxLength}
       className="w-full rounded-xl border border-white/10 bg-[#111612] px-3.5 py-3 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-[#b6f36a]/60" />
   </label>;
 }
@@ -505,12 +505,12 @@ export function GymWebsiteSettingsForm({ settings }: { settings: {
     <p className="eyebrow">Public gym website</p><h2 className="mt-2 text-lg font-extrabold">Website content</h2>
     <p className="mt-2 text-xs leading-5 text-white/40">Edits text and contact details for your public gym page. Image/video uploads require a configured storage provider and are not enabled.</p>
     <form action={action} className="mt-5 space-y-3">
-      <Field label="Hero title" name="heroTitle" required placeholder="Train with intent." />
+      <Field label="Hero title" name="heroTitle" required defaultValue={settings.heroTitle} placeholder="Train with intent." />
       <label className="block"><span className="mb-2 block text-xs font-semibold text-white/65">Hero subtitle</span><textarea name="heroSubtitle" required maxLength={300} rows={2} defaultValue={settings.heroSubtitle} className="w-full rounded-xl border border-white/10 bg-[#111612] px-3.5 py-3 text-sm text-white" /></label>
       <label className="block"><span className="mb-2 block text-xs font-semibold text-white/65">About the gym</span><textarea name="aboutText" required maxLength={2000} rows={4} defaultValue={settings.aboutText} className="w-full rounded-xl border border-white/10 bg-[#111612] px-3.5 py-3 text-sm text-white" /></label>
       <label className="block"><span className="mb-2 block text-xs font-semibold text-white/65">Facilities (one per line)</span><textarea name="facilitiesText" maxLength={1500} rows={4} defaultValue={settings.facilitiesText} className="w-full rounded-xl border border-white/10 bg-[#111612] px-3.5 py-3 text-sm text-white" /></label>
-      <Field label="Address" name="address" placeholder="Gym address" />
-      <div className="grid gap-3 sm:grid-cols-2"><Field label="Contact email" name="contactEmail" type="email" placeholder="hello@example.com" /><Field label="Contact phone" name="contactPhone" placeholder="+91..." /></div>
+      <Field label="Address" name="address" defaultValue={settings.address} placeholder="Gym address" />
+      <div className="grid gap-3 sm:grid-cols-2"><Field label="Contact email" name="contactEmail" type="email" defaultValue={settings.contactEmail} placeholder="hello@example.com" /><Field label="Contact phone" name="contactPhone" defaultValue={settings.contactPhone} placeholder="+91..." /></div>
       <label className="flex items-center gap-2 text-xs text-white/65"><input type="checkbox" name="isPublished" defaultChecked={settings.isPublished} className="accent-[#b6f36a]" /> Publish the public gym page</label>
       <button disabled={pending} className="w-full rounded-full bg-[#b6f36a] px-5 py-3.5 text-xs font-black text-[#090b0a] disabled:opacity-50">{pending ? "Saving…" : "Save website settings"}</button>
     </form><Notice state={state} />
