@@ -2,7 +2,6 @@ import "server-only";
 
 import { createHash, randomUUID } from "node:crypto";
 import { prisma } from "@/lib/prisma";
-import { createLoginThrottleKey } from "@/lib/auth/login-throttle-key";
 
 export { createLoginThrottleKey } from "@/lib/auth/login-throttle-key";
 
