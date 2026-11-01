@@ -251,7 +251,7 @@ const planSchema = z.object({
   name: z.string().trim().min(2).max(80),
   description: z.string().trim().max(500).optional(),
   durationDays: z.coerce.number().int().min(1).max(3650),
-  price: z.string().regex(/^\d{1,7}(?:\\.\d{1,2})?$/, "Enter a valid price with up to two decimals."),
+  price: z.string().regex(/^\d{1,7}(?:\.\d{1,2})?$/, "Enter a valid price with up to two decimals."),
 });
 
 export async function createMembershipPlanAction(
@@ -411,7 +411,7 @@ export async function assignMembershipAction(
 
 const paymentSchema = z.object({
   memberId: z.string().uuid(),
-  amount: z.string().regex(/^\d{1,7}(?:\\.\d{1,2})?$/),
+  amount: z.string().regex(/^\d{1,7}(?:\.\d{1,2})?$/),
   method: z.nativeEnum(PaymentMethod),
   reference: z.string().trim().max(120).optional(),
   note: z.string().trim().max(500).optional(),
