@@ -18,6 +18,7 @@ async function ensureAccount(input: {
   name: string;
   role: Role;
   gymId?: string;
+  isGymOwner?: boolean;
 }) {
   const email = input.email.trim().toLowerCase();
   const passwordBytes = Buffer.byteLength(input.password, "utf8");
@@ -36,6 +37,7 @@ async function ensureAccount(input: {
         `The existing account ${email} does not match the requested bootstrap role or gym. No account was modified.`,
       );
     }
+    await prisma.user.update({ where: { id: existing.id }, data: { isGymOwner: input.isGymOwner ?? false } });
     console.info(`Bootstrap account already exists: ${email}`);
     return;
   }
@@ -49,6 +51,7 @@ async function ensureAccount(input: {
       role: input.role,
       status: UserStatus.ACTIVE,
       gymId: input.gymId,
+      isGymOwner: input.isGymOwner ?? false,
     },
   });
 
@@ -76,6 +79,7 @@ async function main() {
       name: process.env.BOOTSTRAP_OWNER_NAME?.trim() || "Gym Owner",
       role: Role.OWNER,
       gymId: gym.id,
+      isGymOwner: true,
     });
   } else if (ownerEmail || ownerPassword) {
     throw new Error("Set both BOOTSTRAP_OWNER_EMAIL and BOOTSTRAP_OWNER_PASSWORD.");
