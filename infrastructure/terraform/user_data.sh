@@ -26,7 +26,9 @@ if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='gymos'
 fi
 
 sed -ri "s/^#?listen_addresses[[:space:]]*=.*/listen_addresses = '127.0.0.1'/" /var/lib/pgsql/data/postgresql.conf
-if ! grep -qE "^host[[:space:]]+all[[:space:]]+all[[:space:]]+127\.0\.0\.1/32[[:space:]]+scram-sha-256$" /var/lib/pgsql/data/pg_hba.conf; then
+if grep -qE "^host[[:space:]]+all[[:space:]]+all[[:space:]]+127\.0\.0\.1/32" /var/lib/pgsql/data/pg_hba.conf; then
+  sed -ri 's#^host[[:space:]]+all[[:space:]]+all[[:space:]]+127\.0\.0\.1/32.*#host all all 127.0.0.1/32 scram-sha-256#' /var/lib/pgsql/data/pg_hba.conf
+else
   printf '\nhost all all 127.0.0.1/32 scram-sha-256\n' >> /var/lib/pgsql/data/pg_hba.conf
 fi
 systemctl restart postgresql
