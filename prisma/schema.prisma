@@ -71,6 +71,7 @@ model Gym {
   payments     Payment[]
   permissions  StaffPermission[]
   auditLogs    AuditLog[]
+  invitations  AccountInvitation[]
 
   @@map("gyms")
 }
@@ -99,6 +100,8 @@ model User {
   receivedPayments   Payment[]         @relation("PaymentMember")
   createdPayments    Payment[]         @relation("PaymentCreator")
   auditLogs          AuditLog[]        @relation("AuditActor")
+  receivedInvitations AccountInvitation[] @relation("InvitationRecipient")
+  createdInvitations  AccountInvitation[] @relation("InvitationCreator")
 
   @@index([gymId, role, status])
   @@map("users")
@@ -293,4 +296,25 @@ model AuditLog {
   @@index([actorId, createdAt])
   @@index([resourceType, resourceId])
   @@map("audit_logs")
+}
+
+
+model AccountInvitation {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @db.Uuid
+  gymId       String    @db.Uuid
+  createdById String    @db.Uuid
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  consumedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  user      User @relation("InvitationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  gym       Gym  @relation(fields: [gymId], references: [id], onDelete: Restrict)
+  createdBy User @relation("InvitationCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([userId, expiresAt])
+  @@index([gymId, createdAt])
+  @@map("account_invitations")
 }
