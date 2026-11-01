@@ -1,6 +1,7 @@
 import { Role, UserStatus } from "@prisma/client";
 import AppShell from "@/app/components/app-shell";
 import { requireRole } from "@/lib/auth/guards";
+import { hasGymPermission } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/prisma";
 
 function Metric({ label, value, detail }: { label: string; value: number; detail: string }) {
@@ -20,6 +21,13 @@ export default async function OwnerDashboard() {
         <h2 className="text-lg font-bold">Gym setup required</h2>
         <p className="mt-2 text-sm leading-7 text-white/50">Ask the platform administrator to finish linking this owner account to a gym.</p>
       </section>
+    </AppShell>;
+  }
+
+  const canReadDashboard = await hasGymPermission(user.id, user.gymId, "dashboard.read");
+  if (!canReadDashboard) {
+    return <AppShell eyebrow="Gym operations" title="Access restricted" description="Your staff account does not currently have permission to view this dashboard." userName={user.name} roleLabel="Gym staff">
+      <section className="surface rounded-2xl p-6"><h2 className="text-lg font-bold">Permission required</h2><p className="mt-2 text-sm leading-7 text-white/50">Ask the gym owner to grant the dashboard.read permission. No gym records were returned.</p></section>
     </AppShell>;
   }
 
