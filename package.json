@@ -53,11 +53,7 @@
       "postcss": "^8.5.23"
     },
     "deepmerge-ts": "^8.0.2",
-    "minimatch": "^11.0.1",
-    "tinypool": "^2.1.1",
-    "@eslint/eslintrc": {
-      "minimatch": "10.2.6"
-    }
+    "tinypool": "^2.1.1"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
