@@ -17,6 +17,7 @@
 - Refunds and adjustments are immutable linked entries against an original charge; row locking serializes concurrent corrections and prevents refunds or decreases beyond the remaining charge balance.
 - Sensitive operational changes create audit entries within the same database transaction as the write.
 - Login errors are generic and do not reveal whether an email exists.
+- Failed logins are throttled using a database-backed hashed email/IP bucket (five failures in a 15-minute window trigger a 15-minute lock).
 - Public self-registration is disabled. Bootstrap credentials are operator-supplied and are never committed.
 - Member and staff activation uses cryptographically random 256-bit bearer tokens; only SHA-256 hashes are stored in PostgreSQL.
 - Invitation links expire after 48 hours, are single-use, and previous unused links are revoked when a new one is issued.
@@ -25,10 +26,11 @@
 
 ## Required before production
 
-- Login throttling/rate limiting is not implemented yet.
+- IP identification for login throttling relies on trusted reverse-proxy forwarding headers in deployed environments; do not trust arbitrary client-supplied forwarding headers.
 - MFA and secure account recovery are not implemented yet.
+- Invitation email delivery is not configured. Owners must share expiring single-use links through a trusted channel.
 - Invitation email delivery is not configured. Owners must copy the generated one-time activation link and deliver it to the intended recipient through a trusted channel; the link itself is not stored in plaintext.
-- Finance module currently records `CHARGE` entries only; refund/adjustment workflows and period reconciliation remain pending.
+- Finance records are staff-entered only. Linked refunds, signed adjustments, printable receipts and date-range reconciliation are implemented; no payment gateway is connected.
 - Every future server action/API must verify gym scope and member ownership; dashboard isolation alone is not sufficient.
 - Add integration tests for cross-gym access, IDOR, suspended users, session expiry, permission changes, duplicate requests and concurrent writes.
 - Add security headers/CSP review, dependency and image scanning, secret handling, backup/restore and incident drills.
@@ -47,7 +49,7 @@
 - Validate input server-side; use parameterized database access and output encoding.
 - Protect state-changing requests against CSRF where cookie auth is used.
 - Never log passwords, tokens, full payment credentials, private document URLs or unnecessary personal data.
-- Keep private member media inaccessible to public gallery routes.
+- Private member media uploads are disabled until a private storage provider and signed-access policy are configured.
 - Use short-lived scoped upload/download URLs; validate type, size and ownership server-side.
 
 ## Financial integrity
@@ -56,6 +58,7 @@
 - First release records payments entered by authorized staff; no payment gateway is enabled.
 - Payment entries are recorded as append-only charge events; no arbitrary edit/delete UI is available.
 - Refunds and adjustments are recorded as separate append-only ledger events; the original charge is never overwritten.
+- Member QR attendance uses a signed HMAC token containing gym and member scope, with 60-second expiry and one-time nonce-based idempotency.
 - Record actor, timestamp, amount, currency, method, reference and reason; derive balances from ledger entries.
 
 ## Operations
@@ -65,6 +68,7 @@
 - Scan dependencies, source and container images.
 - Audit permission changes, finance actions, exports, deletion and super-admin support access.
 - Define tested backup/restore before production.
+- TOTP MFA, secure account recovery, automated end-to-end/IDOR/concurrency tests, CSP review, container image scanning and external monitoring remain required.
 
 ## Incident response
 
