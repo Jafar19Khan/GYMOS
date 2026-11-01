@@ -21,13 +21,13 @@ Next.js App Router, TypeScript, Tailwind CSS, Framer Motion, PostgreSQL, Prisma,
 ## Repository map
 
 - `src/` — Next.js application, route handlers, domain and auth services
-- `prisma/` — relational schema, initial migration and bootstrap seed
+- `prisma/` — relational schema, migrations and bootstrap seed
 - `backend/` — domain-boundary design notes
 - `docker/` — local container orchestration
 - `infrastructure/terraform/` — IaC baseline; never auto-applied
 - `.github/workflows/` — CI, dependency audit and Terraform validation
 - `docs/` — architecture, security, roadmap, design, cost and operations notes
-- `tests/` — auth policy and money-conversion unit tests plus broader test strategy
+- `tests/` — auth, invitation, date and money-conversion unit tests
 
 ## Run locally with Docker
 
@@ -44,11 +44,13 @@ To run Next.js directly on your host instead of in Docker, start only the databa
 
 ## Owner operations
 
-The Owner workspace links to Members, Staff, Plans and Payments. Server actions check the gym scope and required permission before writing data.
+The Owner workspace links to Members, Staff, Plans, Payments, Attendance and Classes. Server actions check gym scope and required permission before writing data.
 
-- Member records can be created in `INVITED` state and suspended/reactivated. Invitation delivery and password activation are not implemented yet.
-- Staff records can be created in `INVITED` state. Permissions are explicitly granted; staff cannot delegate permissions they do not hold or grant elevated permissions to themselves/others.
+- Member and staff records are created in `INVITED` state with a single-use activation link. Links contain a random 256-bit token, only its SHA-256 hash is stored, and links expire after 48 hours. Re-issuing a link revokes previous unused links. Owners must copy and send links through a trusted channel; provider-backed email is not configured.
+- Invitees set their own password (12+ characters); the password is bcrypt-hashed. Activation and token consumption happen in one transaction, and staff permissions remain explicitly granted.
 - Membership plans store duration in days and price as integer paise. Membership assignment checks date overlap and serializes assignments for the same member.
+- Attendance supports manual check-in for active members with a valid membership, once per gym-local day.
+- Classes can be scheduled in the gym timezone. Active members can book; capacity is serialized in a database transaction and cancellations promote the oldest waitlisted member first.
 - Payments are staff-entered ledger `CHARGE` entries only. No payment gateway is connected; refunds, adjustments and reconciled reports are not enabled yet.
 
 ## Authentication and security
@@ -57,7 +59,7 @@ Passwords are bcrypt-hashed. Login creates a cryptographically random opaque ses
 
 The three top-level roles are enforced on the server. Gym staff accounts use the Owner workspace but receive only explicitly granted permissions; the primary gym owner has the full gym permission set. Members can query only records associated with their own user ID. Public self-registration is disabled; privileged accounts are created by an operator-controlled seed process.
 
-This is a security foundation, not a production security certification. Login throttling, MFA, account recovery, secure invitations, full audit coverage, comprehensive member/tenant isolation tests and security review remain required before public production use.
+This is a security foundation, not a production security certification. Login throttling, MFA, account recovery, provider-backed invitation email, full audit coverage, comprehensive member/tenant isolation tests and security review remain required before public production use.
 
 ## Cost gate
 
@@ -65,8 +67,8 @@ The AWS account and Mumbai-region usage must be reviewed against current account
 
 ## Delivery status
 
-Implemented: public landing page, local container setup, database schema/migration, bootstrap seed, session login/logout, role routing, role-protected dashboard summaries, member and staff invitation-pending record management, staff permission maintenance, membership plan management and assignment, staff-entered payment entries, audit events, and CI/security workflows.
+Implemented: public landing page, local container setup, PostgreSQL schema/migrations and bootstrap seed, session login/logout, role routing, role-protected dashboards, secure member/staff invitation and password activation, staff permission maintenance, membership plans and assignment, manual attendance, class scheduling and FIFO bookings/waitlist, staff-entered payment entries, audit events, and CI/security workflows.
 
-Still pending: secure invite activation, member/profile editing, refund/adjustment ledger flows, QR attendance, transactional class booking/waitlist, workouts, diet/progress, public CMS/media, MFA/rate limits, comprehensive integration/E2E tests, backup/restore drills and deployment. This project is not production-ready yet.
+Still pending: invitation email delivery, member/profile editing and lifecycle tools, refund/adjustment ledger flows, QR attendance, workouts, diet/progress, public CMS/media, MFA/rate limits, comprehensive integration/E2E tests, backup/restore drills and deployment. This project is not production-ready yet.
 
 See [architecture](docs/ARCHITECTURE.md), [security](docs/SECURITY.md), [roadmap](docs/ROADMAP.md), [design system](docs/DESIGN-SYSTEM.md) and [local operations](docs/OPERATIONS.md).
