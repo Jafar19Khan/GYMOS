@@ -1214,7 +1214,7 @@ export async function issueAccountInvitationAction(
 
 const ledgerCorrectionSchema = z.object({
   paymentId: z.string().uuid(),
-  amount: z.string().regex(/^\\d{1,7}(?:\\.\\d{1,2})?$/),
+  amount: z.string().regex(/^\d{1,7}(?:\.\d{1,2})?$/),
   note: z.string().trim().min(3).max(500),
   reference: z.string().trim().max(120).optional(),
 });
