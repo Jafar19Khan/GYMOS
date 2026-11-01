@@ -1,0 +1,7 @@
+aws_region       = "ap-south-1"
+project_name     = "gymos"
+instance_type    = "t3.medium"
+root_volume_size = 30
+
+# Optional. Leave empty to use the first available AZ.
+availability_zone = ""
