@@ -27,6 +27,17 @@ APP_DIR="/opt/gymos"
 BRANCH="__BRANCH__"
 REPO_URL="https://github.com/Jafar19Khan/GYMOS.git"
 
+for attempt in $(seq 1 60); do
+  if id gymos >/dev/null 2>&1 && systemctl is-active --quiet postgresql && systemctl is-active --quiet nginx && test -s /etc/gymos/gymos.env; then
+    break
+  fi
+  sleep 5
+done
+if ! id gymos >/dev/null 2>&1 || ! systemctl is-active --quiet postgresql || ! systemctl is-active --quiet nginx || [ ! -s /etc/gymos/gymos.env ]; then
+  echo "EC2 first-boot setup is not ready yet. Check /var/log/gymos-bootstrap.log and cloud-init status."
+  exit 1
+fi
+
 if [ ! -d "$APP_DIR/.git" ]; then
   rm -rf "$APP_DIR"
   git clone --depth 1 --branch "$BRANCH" "$REPO_URL" "$APP_DIR"
