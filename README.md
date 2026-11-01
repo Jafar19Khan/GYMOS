@@ -22,7 +22,6 @@ Next.js App Router, TypeScript, Tailwind CSS, Framer Motion, PostgreSQL, Prisma,
 
 - `src/` — Next.js application, route handlers, domain and auth services
 - `prisma/` — relational schema, migrations and bootstrap seed
-- `backend/` — domain-boundary design notes
 - `docker/` — local container orchestration
 - `infrastructure/terraform/` — IaC baseline; never auto-applied
 - `.github/workflows/` — CI, dependency audit and Terraform validation
