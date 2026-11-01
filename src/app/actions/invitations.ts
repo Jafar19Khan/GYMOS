@@ -1,6 +1,6 @@
 "use server";
 
-import { Role, UserStatus } from "@prisma/client";
+import { UserStatus } from "@prisma/client";
 import { hash } from "bcryptjs";
 import { redirect } from "next/navigation";
 import { z } from "zod";
