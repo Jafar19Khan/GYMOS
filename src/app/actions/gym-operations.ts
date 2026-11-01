@@ -1130,7 +1130,7 @@ export async function cancelGymClassBookingAction(
   formData: FormData,
 ): Promise<ActionState> {
   const user = await getCurrentUser();
-  if (!user || user.role !== Role.MEMBER || !gymId) {
+  if (!user || user.role !== Role.MEMBER || !user.gymId) {
     return { ok: false, message: "Sign in with an active member account to manage bookings." };
   }
 
