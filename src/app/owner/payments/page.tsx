@@ -38,7 +38,7 @@ export default async function PaymentsPage({ searchParams }: PageProps) {
   const rangeStart = rangeValid ? localDateTimeToUtc(`${from}T00:00`, timeZone) : null;
   const rangeEnd = rangeValid ? localDateTimeToUtc(`${addCalendarDays(to, 1)}T00:00`, timeZone) : null;
   const dateFilter = rangeStart && rangeEnd ? { gte: rangeStart, lt: rangeEnd } : undefined;
-  const where = { gymId: user.gymId, ...(dateFilter ? { createdAt: dateFilter } : {}) };
+  const where = { gymId: user.gymId, createdAt: dateFilter ?? { lt: new Date(0) } };
 
   const [payments, members, canWrite, canCorrect, totals] = await Promise.all([
     prisma.payment.findMany({
