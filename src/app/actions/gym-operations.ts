@@ -1493,3 +1493,349 @@ export async function recordAdjustmentAction(
   revalidatePath("/member");
   return { ok: true, message: "Adjustment recorded as a separate signed ledger entry." };
 }
+
+
+const workoutPlanSchema = z.object({
+  memberId: z.string().uuid(),
+  title: z.string().trim().min(2).max(100),
+  description: z.string().trim().max(1000).optional(),
+  exerciseInstructions: z.string().trim().min(2).max(4000),
+});
+
+export async function createWorkoutPlanAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const context = await ownerContext("fitness.manage");
+  if ("error" in context) return { ok: false, message: context.error };
+
+  const parsed = workoutPlanSchema.safeParse({
+    memberId: readText(formData, "memberId"),
+    title: readText(formData, "title"),
+    description: readText(formData, "description") || undefined,
+    exerciseInstructions: readText(formData, "exerciseInstructions"),
+  });
+  if (!parsed.success) return { ok: false, message: "Choose an active member and enter a workout plan." };
+
+  const member = await prisma.user.findFirst({
+    where: { id: parsed.data.memberId, gymId: context.gymId, role: Role.MEMBER, status: UserStatus.ACTIVE },
+    select: { id: true },
+  });
+  if (!member) return { ok: false, message: "Active member not found in this gym." };
+
+  const planId = randomUUID();
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.workoutPlan.create({
+        data: {
+          id: planId,
+          gymId: context.gymId,
+          memberId: member.id,
+          createdById: context.user.id,
+          title: parsed.data.title,
+          description: parsed.data.description || null,
+          exerciseInstructions: parsed.data.exerciseInstructions,
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorId: context.user.id,
+          gymId: context.gymId,
+          event: "fitness.workout_plan_assigned",
+          resourceType: "workout_plan",
+          resourceId: planId,
+          metadata: { memberId: member.id },
+        },
+      });
+    });
+  } catch {
+    return { ok: false, message: "Workout plan could not be assigned. Please retry." };
+  }
+
+  revalidatePath("/owner/fitness");
+  revalidatePath("/member/fitness");
+  return { ok: true, message: "Workout plan assigned to the member." };
+}
+
+const dietPlanSchema = z.object({
+  memberId: z.string().uuid(),
+  title: z.string().trim().min(2).max(100),
+  targetCalories: z.coerce.number().int().min(500).max(10000),
+  proteinGrams: z.coerce.number().int().min(0).max(500),
+  carbsGrams: z.coerce.number().int().min(0).max(1000),
+  fatGrams: z.coerce.number().int().min(0).max(500),
+  notes: z.string().trim().max(2000).optional(),
+});
+
+export async function createDietPlanAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const context = await ownerContext("fitness.manage");
+  if ("error" in context) return { ok: false, message: context.error };
+
+  const parsed = dietPlanSchema.safeParse({
+    memberId: readText(formData, "memberId"),
+    title: readText(formData, "title"),
+    targetCalories: readText(formData, "targetCalories"),
+    proteinGrams: readText(formData, "proteinGrams"),
+    carbsGrams: readText(formData, "carbsGrams"),
+    fatGrams: readText(formData, "fatGrams"),
+    notes: readText(formData, "notes") || undefined,
+  });
+  if (!parsed.success) return { ok: false, message: "Enter valid diet targets and select an active member." };
+
+  const member = await prisma.user.findFirst({
+    where: { id: parsed.data.memberId, gymId: context.gymId, role: Role.MEMBER, status: UserStatus.ACTIVE },
+    select: { id: true },
+  });
+  if (!member) return { ok: false, message: "Active member not found in this gym." };
+
+  const dietPlanId = randomUUID();
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.dietPlan.create({
+        data: {
+          id: dietPlanId,
+          gymId: context.gymId,
+          memberId: member.id,
+          createdById: context.user.id,
+          title: parsed.data.title,
+          targetCalories: parsed.data.targetCalories,
+          proteinGrams: parsed.data.proteinGrams,
+          carbsGrams: parsed.data.carbsGrams,
+          fatGrams: parsed.data.fatGrams,
+          notes: parsed.data.notes || null,
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorId: context.user.id,
+          gymId: context.gymId,
+          event: "fitness.diet_plan_assigned",
+          resourceType: "diet_plan",
+          resourceId: dietPlanId,
+          metadata: { memberId: member.id, targetCalories: parsed.data.targetCalories },
+        },
+      });
+    });
+  } catch {
+    return { ok: false, message: "Diet plan could not be assigned. Please retry." };
+  }
+
+  revalidatePath("/owner/fitness");
+  revalidatePath("/member/fitness");
+  return { ok: true, message: "Diet targets assigned. These are general fitness targets, not medical advice." };
+}
+
+const workoutSessionSchema = z.object({
+  planId: z.string().uuid(),
+  durationMinutes: z.string().optional(),
+  notes: z.string().trim().max(500).optional(),
+});
+
+export async function logWorkoutSessionAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const user = await getCurrentUser();
+  if (!user || user.role !== Role.MEMBER || !user.gymId) {
+    return { ok: false, message: "Sign in with a member account to log a workout." };
+  }
+  const parsed = workoutSessionSchema.safeParse({
+    planId: readText(formData, "planId"),
+    durationMinutes: readText(formData, "durationMinutes"),
+    notes: readText(formData, "notes") || undefined,
+  });
+  if (!parsed.success) return { ok: false, message: "Choose a valid workout plan and session duration." };
+  const durationMinutes = parsed.data.durationMinutes ? Number(parsed.data.durationMinutes) : null;
+  if (durationMinutes !== null && (!Number.isInteger(durationMinutes) || durationMinutes < 1 || durationMinutes > 600)) {
+    return { ok: false, message: "Workout duration must be between 1 and 600 minutes." };
+  }
+
+  const plan = await prisma.workoutPlan.findFirst({
+    where: { id: parsed.data.planId, gymId: user.gymId, memberId: user.id, isActive: true },
+    select: { id: true },
+  });
+  if (!plan) return { ok: false, message: "Workout plan not found in your account." };
+
+  const sessionId = randomUUID();
+  await prisma.$transaction(async (tx) => {
+    await tx.workoutSession.create({
+      data: {
+        id: sessionId,
+        gymId: user.gymId!,
+        memberId: user.id,
+        workoutPlanId: plan.id,
+        durationMinutes,
+        notes: parsed.data.notes || null,
+      },
+    });
+    await tx.auditLog.create({
+      data: {
+        actorId: user.id,
+        gymId: user.gymId,
+        event: "fitness.workout_completed",
+        resourceType: "workout_session",
+        resourceId: sessionId,
+        metadata: { workoutPlanId: plan.id, durationMinutes },
+      },
+    });
+  });
+
+  revalidatePath("/member/fitness");
+  revalidatePath("/member");
+  revalidatePath("/owner/fitness");
+  return { ok: true, message: "Workout session logged." };
+}
+
+const progressEntrySchema = z.object({
+  metric: z.enum(["WEIGHT_KG", "BODY_FAT_PERCENT", "WAIST_CM", "CHEST_CM"]),
+  value: z.coerce.number().positive().finite(),
+  note: z.string().trim().max(300).optional(),
+});
+
+export async function recordFitnessProgressAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const user = await getCurrentUser();
+  if (!user || user.role !== Role.MEMBER || !user.gymId) {
+    return { ok: false, message: "Sign in with a member account to record progress." };
+  }
+  const parsed = progressEntrySchema.safeParse({
+    metric: readText(formData, "metric"),
+    value: readText(formData, "value"),
+    note: readText(formData, "note") || undefined,
+  });
+  if (!parsed.success) return { ok: false, message: "Enter a valid measurement." };
+
+  const units: Record<typeof parsed.data.metric, string> = {
+    WEIGHT_KG: "kg",
+    BODY_FAT_PERCENT: "%",
+    WAIST_CM: "cm",
+    CHEST_CM: "cm",
+  };
+  const bounds: Record<typeof parsed.data.metric, number> = {
+    WEIGHT_KG: 500,
+    BODY_FAT_PERCENT: 100,
+    WAIST_CM: 300,
+    CHEST_CM: 300,
+  };
+  if (parsed.data.value > bounds[parsed.data.metric]) {
+    return { ok: false, message: "Measurement is outside the supported range." };
+  }
+
+  await prisma.progressEntry.create({
+    data: {
+      gymId: user.gymId,
+      memberId: user.id,
+      recordedById: user.id,
+      metric: parsed.data.metric,
+      value: parsed.data.value,
+      unit: units[parsed.data.metric],
+      note: parsed.data.note || null,
+    },
+  });
+  revalidatePath("/member/fitness");
+  revalidatePath("/member");
+  revalidatePath("/owner/fitness");
+  return { ok: true, message: "Progress entry saved." };
+}
+
+const announcementSchema = z.object({
+  title: z.string().trim().min(2).max(120),
+  body: z.string().trim().min(2).max(2000),
+  audience: z.enum(["MEMBERS", "ALL"]),
+});
+
+export async function createAnnouncementAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const context = await ownerContext("cms.manage");
+  if ("error" in context) return { ok: false, message: context.error };
+
+  const parsed = announcementSchema.safeParse({
+    title: readText(formData, "title"),
+    body: readText(formData, "body"),
+    audience: readText(formData, "audience"),
+  });
+  if (!parsed.success) return { ok: false, message: "Enter a title, message and audience." };
+
+  const announcement = await prisma.announcement.create({
+    data: {
+      gymId: context.gymId,
+      createdById: context.user.id,
+      title: parsed.data.title,
+      body: parsed.data.body,
+      audience: parsed.data.audience,
+      publishedAt: new Date(),
+    },
+    select: { id: true },
+  });
+  await prisma.auditLog.create({
+    data: {
+      actorId: context.user.id,
+      gymId: context.gymId,
+      event: "announcement.published",
+      resourceType: "announcement",
+      resourceId: announcement.id,
+      metadata: { audience: parsed.data.audience },
+    },
+  });
+
+  revalidatePath("/owner/announcements");
+  revalidatePath("/member");
+  revalidatePath("/member/announcements");
+  return { ok: true, message: "Announcement published." };
+}
+
+const websiteSchema = z.object({
+  heroTitle: z.string().trim().min(2).max(100),
+  heroSubtitle: z.string().trim().min(2).max(300),
+  aboutText: z.string().trim().min(2).max(2000),
+  facilitiesText: z.string().trim().max(1500),
+  address: z.string().trim().max(300).optional(),
+  contactEmail: z.union([z.literal(""), z.string().email().max(254)]).optional(),
+  contactPhone: z.string().trim().max(24).optional(),
+});
+
+export async function updateGymWebsiteAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const context = await ownerContext("cms.manage");
+  if ("error" in context) return { ok: false, message: context.error };
+
+  const parsed = websiteSchema.safeParse({
+    heroTitle: readText(formData, "heroTitle"),
+    heroSubtitle: readText(formData, "heroSubtitle"),
+    aboutText: readText(formData, "aboutText"),
+    facilitiesText: readText(formData, "facilitiesText"),
+    address: readText(formData, "address") || undefined,
+    contactEmail: readText(formData, "contactEmail"),
+    contactPhone: readText(formData, "contactPhone") || undefined,
+  });
+  if (!parsed.success) return { ok: false, message: "Enter valid website content and contact information." };
+
+  const isPublished = readText(formData, "isPublished") === "on";
+  await prisma.gymWebsite.upsert({
+    where: { gymId: context.gymId },
+    update: { ...parsed.data, isPublished },
+    create: { gymId: context.gymId, ...parsed.data, isPublished },
+  });
+  await prisma.auditLog.create({
+    data: {
+      actorId: context.user.id,
+      gymId: context.gymId,
+      event: isPublished ? "website.published" : "website.updated",
+      resourceType: "gym_website",
+      metadata: { isPublished },
+    },
+  });
+
+  revalidatePath("/owner/website");
+  revalidatePath(`/gym/${context.user.gym?.slug ?? ""}`);
+  return { ok: true, message: isPublished ? "Gym website content published." : "Website content saved as draft." };
+}
