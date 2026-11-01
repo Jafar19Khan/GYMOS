@@ -40,6 +40,7 @@ export default function AppShell({
           </div>
         </div>
       </header>
+      {(roleLabel === "Owner" || roleLabel === "Owner / Staff") && <nav aria-label="Owner workspace" className="border-b border-white/10 bg-[#101511]"><div className="container-shell flex flex-wrap gap-2 py-3">{[["/owner","Overview"],["/owner/members","Members"],["/owner/staff","Staff"],["/owner/plans","Plans"],["/owner/payments","Payments"]].map(([href,label]) => <Link key={href} href={href} className="rounded-full border border-white/10 px-3.5 py-2 text-[11px] font-bold text-white/55 transition hover:border-[#b6f36a]/40 hover:text-[#b6f36a]">{label}</Link>)}</div></nav>}
       <section className="container-shell py-12 md:py-16">
         <div className="mb-10">
           <p className="eyebrow">{eyebrow}</p>
