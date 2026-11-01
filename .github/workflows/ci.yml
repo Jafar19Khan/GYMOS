@@ -57,12 +57,30 @@ jobs:
       - run: npm run build
       - name: Build production Docker image
         run: docker build --file docker/Dockerfile --tag gymos:ci .
-      - name: Smoke-test production Compose startup
-        run: docker compose --file docker/compose.yaml up --no-build --detach --wait --wait-timeout 180
+      - name: Start production Compose stack
+        run: docker compose --file docker/compose.yaml up --no-build --detach
       - name: Check service health and database readiness
+        shell: bash
         run: |
-          curl --fail --silent --show-error http://127.0.0.1:3000/api/health
-          curl --fail --silent --show-error http://127.0.0.1:3000/api/ready
+          ready=0
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error http://127.0.0.1:3000/api/health >/dev/null \
+              && curl --fail --silent --show-error http://127.0.0.1:3000/api/ready; then
+              ready=1
+              break
+            fi
+            running="$(docker inspect --format='{{.State.Running}}' gymos-web 2>/dev/null || echo false)"
+            if [ "$running" != "true" ]; then
+              echo "GYMOS web container stopped before readiness."
+              break
+            fi
+            sleep 3
+          done
+          if [ "$ready" -ne 1 ]; then
+            docker compose --file docker/compose.yaml ps
+            docker compose --file docker/compose.yaml logs --no-color web db
+            exit 1
+          fi
       - name: Tear down Compose smoke test
         if: always()
         run: docker compose --file docker/compose.yaml down -v
