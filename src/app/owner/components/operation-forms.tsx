@@ -36,9 +36,6 @@ function Field({ label, name, type = "text", required = false, placeholder, min,
   </label>;
 }
 
-function Submit({ label }: { label: string }) {
-  return <button type="submit" className="w-full rounded-full bg-[#b6f36a] px-5 py-3.5 text-xs font-black text-[#090b0a] transition hover:bg-white">{label}</button>;
-}
 
 export function MemberCreateForm() {
   const [state, action, pending] = useActionState(createMemberAction, initial);
