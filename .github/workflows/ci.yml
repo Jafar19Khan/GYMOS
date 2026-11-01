@@ -50,3 +50,5 @@ jobs:
       - run: npm run typecheck
       - run: npm run test
       - run: npm run build
+      - name: Build production Docker image
+        run: docker build --file docker/Dockerfile --tag gymos:ci .
