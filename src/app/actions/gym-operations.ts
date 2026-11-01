@@ -60,15 +60,17 @@ function readText(formData: FormData, key: string): string {
 }
 
 function buildInvitationUrl(token: string): string {
-  const configuredUrl = process.env.APP_URL?.trim() || "http://localhost:3000";
+  const configuredUrl = process.env.APP_URL?.trim();
+  if (!configuredUrl) throw new Error("APP_URL is required to issue account invitations.");
   const url = new URL(configuredUrl);
+  const localHost = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
   if (
     !["http:", "https:"].includes(url.protocol) ||
-    (process.env.NODE_ENV === "production" && url.protocol !== "https:") ||
+    (process.env.NODE_ENV === "production" && url.protocol !== "https:" && !localHost) ||
     url.username ||
     url.password
   ) {
-    throw new Error("APP_URL must be a public HTTPS origin in production.");
+    throw new Error("APP_URL must use HTTPS for non-local production hosts.");
   }
   return `${url.origin}/activate?token=${encodeURIComponent(token)}`;
 }
