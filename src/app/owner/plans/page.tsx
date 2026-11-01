@@ -19,7 +19,7 @@ export default async function PlansPage() {
   const [plans, members, memberships, canManage] = await Promise.all([
     prisma.membershipPlan.findMany({ where: { gymId: user.gymId }, orderBy: { createdAt: "desc" } }),
     prisma.user.findMany({ where: { gymId: user.gymId, role: Role.MEMBER, status: { not: UserStatus.SUSPENDED } }, select: { id: true, name: true, email: true }, orderBy: { name: "asc" }, take: 500 }),
-    prisma.membership.findMany({ where: { gymId: user.gymId, status: { in: [MembershipStatus.ACTIVE, MembershipStatus.UPCOMING, MembershipStatus.FROZEN] } }, include: { member: { select: { name: true, email: true } }, plan: { select: { name: true } } }, orderBy: { startDate: "desc" }, take: 100 }),
+    prisma.membership.findMany({ where: { gymId: user.gymId }, include: { member: { select: { name: true, email: true } }, plan: { select: { name: true } } }, orderBy: { startDate: "desc" }, take: 100 }),
     hasGymPermission(user.id, user.gymId, "memberships.manage"),
   ]);
 
@@ -41,7 +41,7 @@ export default async function PlansPage() {
       <h2 className="mb-5 text-lg font-extrabold">Recent memberships</h2>
       {memberships.length === 0 ? <p className="py-8 text-center text-sm text-white/40">No memberships assigned yet.</p> : <div className="overflow-x-auto"><table className="w-full min-w-[640px] text-left text-sm">
         <thead className="border-b border-white/10 text-[10px] uppercase tracking-widest text-white/40"><tr><th className="pb-3 pr-4">Member</th><th className="pb-3 pr-4">Plan</th><th className="pb-3 pr-4">Start</th><th className="pb-3 pr-4">End</th><th className="pb-3">Status</th></tr></thead>
-        <tbody>{memberships.map((membership) => <tr key={membership.id} className="border-b border-white/5"><td className="py-3 pr-4"><p>{membership.member.name}</p><p className="text-xs text-white/35">{membership.member.email}</p></td><td className="py-3 pr-4">{membership.plan.name}</td><td className="py-3 pr-4">{membership.startDate.toLocaleDateString("en-IN")}</td><td className="py-3 pr-4">{membership.endDate.toLocaleDateString("en-IN")}</td><td className="py-3">{membership.status}</td></tr>)}</tbody>
+        <tbody>{memberships.map((membership) => <tr key={membership.id} className="border-b border-white/5"><td className="py-3 pr-4"><p>{membership.member.name}</p><p className="text-xs text-white/35">{membership.member.email}</p></td><td className="py-3 pr-4">{membership.plan.name}</td><td className="py-3 pr-4">{membership.startDate.toLocaleDateString("en-IN", { timeZone: "UTC" })}</td><td className="py-3 pr-4">{membership.endDate.toLocaleDateString("en-IN", { timeZone: "UTC" })}</td><td className="py-3">{membership.status}</td></tr>)}</tbody>
       </table></div>}
     </section>
   </AppShell>;
