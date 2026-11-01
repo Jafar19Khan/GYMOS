@@ -157,6 +157,113 @@ export async function createMemberAction(
   return { ok: true, message: "Member created. Share this single-use activation link with the member; it expires in 48 hours.", invitationUrl };
 }
 
+
+
+const memberProfileSchema = z.object({
+  memberId: z.string().uuid(),
+  name: z.string().trim().min(2).max(100),
+  email: z.string().trim().email().max(254).transform((value) => value.toLowerCase()),
+  phone: z.string().trim().max(24).optional(),
+  emergencyContactName: z.string().trim().max(100).optional(),
+  emergencyContactPhone: z.string().trim().max(24).optional(),
+  dateOfBirth: z.union([z.literal(""), z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/)]).optional(),
+});
+
+export async function updateMemberProfileAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const context = await ownerContext("members.write");
+  if ("error" in context) return { ok: false, message: context.error };
+
+  const parsed = memberProfileSchema.safeParse({
+    memberId: readText(formData, "memberId"),
+    name: readText(formData, "name"),
+    email: readText(formData, "email"),
+    phone: readText(formData, "phone") || undefined,
+    emergencyContactName: readText(formData, "emergencyContactName") || undefined,
+    emergencyContactPhone: readText(formData, "emergencyContactPhone") || undefined,
+    dateOfBirth: readText(formData, "dateOfBirth"),
+  });
+  if (!parsed.success) return { ok: false, message: "Enter a valid name, email and profile details." };
+
+  const dateOfBirth = parsed.data.dateOfBirth
+    ? new Date(`${parsed.data.dateOfBirth}T00:00:00.000Z`)
+    : null;
+  if (dateOfBirth && (
+    Number.isNaN(dateOfBirth.getTime()) ||
+    dateOfBirth.toISOString().slice(0, 10) !== parsed.data.dateOfBirth ||
+    dateOfBirth > new Date()
+  )) {
+    return { ok: false, message: "Date of birth must be a valid date that is not in the future." };
+  }
+
+  const duplicateEmail = await prisma.user.findFirst({
+    where: { email: parsed.data.email, id: { not: parsed.data.memberId } },
+    select: { id: true },
+  });
+  if (duplicateEmail) return { ok: false, message: "Another account already uses this email address." };
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const lockedMember = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT "id" FROM "users"
+        WHERE "id" = ${parsed.data.memberId}::uuid
+          AND "gymId" = ${context.gymId}::uuid
+        FOR UPDATE
+      `;
+      if (!lockedMember.length) throw new Error("MEMBER_NOT_FOUND");
+
+      const member = await tx.user.findFirst({
+        where: { id: parsed.data.memberId, gymId: context.gymId, role: Role.MEMBER },
+        select: { id: true },
+      });
+      if (!member) throw new Error("MEMBER_NOT_FOUND");
+
+      await tx.user.update({
+        where: { id: member.id },
+        data: { name: parsed.data.name, email: parsed.data.email },
+      });
+      await tx.memberProfile.upsert({
+        where: { userId: member.id },
+        update: {
+          phone: parsed.data.phone || null,
+          emergencyContactName: parsed.data.emergencyContactName || null,
+          emergencyContactPhone: parsed.data.emergencyContactPhone || null,
+          dateOfBirth,
+        },
+        create: {
+          userId: member.id,
+          gymId: context.gymId,
+          phone: parsed.data.phone || null,
+          emergencyContactName: parsed.data.emergencyContactName || null,
+          emergencyContactPhone: parsed.data.emergencyContactPhone || null,
+          dateOfBirth,
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorId: context.user.id,
+          gymId: context.gymId,
+          event: "member.profile.updated",
+          resourceType: "user",
+          resourceId: member.id,
+          metadata: { fields: ["name", "email", "phone", "emergencyContactName", "emergencyContactPhone", "dateOfBirth"] },
+        },
+      });
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "MEMBER_NOT_FOUND") {
+      return { ok: false, message: "Member not found in your gym." };
+    }
+    return { ok: false, message: "Profile could not be updated. Check whether the email is already registered." };
+  }
+
+  revalidatePath("/owner/members");
+  revalidatePath("/owner");
+  return { ok: true, message: "Member profile updated." };
+}
+
 export async function updateMemberStatusAction(
   _previous: ActionState,
   formData: FormData,
@@ -286,6 +393,79 @@ export async function createStaffAction(
   return { ok: true, message: "Staff account created. Share this single-use activation link with the staff member; it expires in 48 hours.", invitationUrl };
 }
 
+
+
+export async function updateStaffStatusAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const context = await ownerContext("staff.manage");
+  if ("error" in context) return { ok: false, message: context.error };
+
+  const staffId = readText(formData, "staffId");
+  const statusText = readText(formData, "status");
+  if (!z.string().uuid().safeParse(staffId).success || !["ACTIVE", "SUSPENDED"].includes(statusText)) {
+    return { ok: false, message: "Invalid staff status request." };
+  }
+
+  const nextStatus = statusText as UserStatus;
+  try {
+    await prisma.$transaction(async (tx) => {
+      const lockedStaff = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT "id" FROM "users"
+        WHERE "id" = ${staffId}::uuid
+          AND "gymId" = ${context.gymId}::uuid
+        FOR UPDATE
+      `;
+      if (!lockedStaff.length) throw new Error("STAFF_NOT_FOUND");
+
+      const staff = await tx.user.findFirst({
+        where: { id: staffId, gymId: context.gymId, role: Role.OWNER, isGymOwner: false },
+        select: { id: true, status: true },
+      });
+      if (!staff) throw new Error("STAFF_NOT_FOUND");
+      if (staff.id === context.user.id) throw new Error("SELF_STATUS_CHANGE");
+      if (staff.status === UserStatus.INVITED) throw new Error("STAFF_INVITED");
+      if (staff.status === nextStatus) throw new Error("STATUS_UNCHANGED");
+
+      await tx.user.update({
+        where: { id: staff.id },
+        data: { status: nextStatus },
+      });
+      if (nextStatus === UserStatus.SUSPENDED) {
+        await tx.session.deleteMany({ where: { userId: staff.id } });
+      }
+      await tx.auditLog.create({
+        data: {
+          actorId: context.user.id,
+          gymId: context.gymId,
+          event: nextStatus === UserStatus.SUSPENDED ? "staff.suspended" : "staff.reactivated",
+          resourceType: "user",
+          resourceId: staff.id,
+        },
+      });
+    });
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "";
+    const messages: Record<string, string> = {
+      STAFF_NOT_FOUND: "Staff account not found in your gym.",
+      SELF_STATUS_CHANGE: "You cannot suspend or reactivate your own account.",
+      STAFF_INVITED: "Invitation-pending staff must activate through their secure invitation link.",
+      STATUS_UNCHANGED: "Staff account already has this status.",
+    };
+    return { ok: false, message: messages[reason] ?? "Staff status could not be updated. Please retry." };
+  }
+
+  revalidatePath("/owner/staff");
+  revalidatePath("/owner");
+  return {
+    ok: true,
+    message: nextStatus === UserStatus.SUSPENDED
+      ? "Staff suspended and all active sessions revoked."
+      : "Staff reactivated. They can sign in again with their existing password.",
+  };
+}
+
 export async function updateStaffPermissionsAction(
   _previous: ActionState,
   formData: FormData,
@@ -314,6 +494,7 @@ export async function updateStaffPermissionsAction(
         data: parsedPermissions.data.map((permission) => ({ userId: staff.id, gymId: context.gymId, permission })),
       });
     }
+    await tx.session.deleteMany({ where: { userId: staff.id } });
     await tx.auditLog.create({
       data: {
         actorId: context.user.id,
