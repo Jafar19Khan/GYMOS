@@ -2,32 +2,39 @@
 
 ## System context
 
-GYMOS includes a public gym website, owner operations workspace, member portal and a platform operations surface for super administrators.
+GYMOS contains a public gym website, an owner/staff operations workspace, a member portal and a platform operations area for super administrators.
 
 ## Application shape
 
-- Web: Next.js App Router, TypeScript, Tailwind CSS and Framer Motion.
-- Server/domain: server components and route handlers call domain services. Domain services own validation, authorization and transaction boundaries.
-- Persistence: PostgreSQL with Prisma. Relational constraints and transactions are preferred for membership, payment, attendance and class booking.
-- Local runtime: Docker Compose.
-- Delivery: GitHub Actions checks, container build and reviewed Terraform plans.
-- Cloud: AWS only after account and strict cost review; no cloud resources are provisioned by the bootstrap.
+- Web and server: Next.js App Router, TypeScript, Tailwind CSS and Framer Motion.
+- Domain/API: route handlers and server components call server-only domain/auth modules.
+- Persistence: PostgreSQL with Prisma migrations.
+- Local runtime: Docker Compose; the web container applies committed migrations before starting.
+- Delivery: GitHub Actions validates the Prisma schema, applies migrations to a temporary PostgreSQL service, runs tests/build, audits dependencies and validates Terraform formatting.
+- Cloud: AWS only after a separate account and strict ₹0 cost review. No AWS resources are currently provisioned.
 
-## Tenancy and access
+## Identity and tenancy
 
-The first installation is a single gym but core gym data is designed with a `gymId`. Every server query must derive gym scope from trusted session/context, never an arbitrary client-supplied gym ID. Super-admin support access is explicit and audited.
+Top-level application roles are `SUPER_ADMIN`, `OWNER` and `MEMBER`.
 
-Application roles are `super_admin`, `owner` and `member`. Staff capabilities are owner-managed permissions such as `members.read`, `members.write`, `attendance.manage`, `classes.manage`, `finance.read`, `finance.write`, `cms.manage` and `reports.read`. Deny by default and check authorization in every server action, route and service.
+- A gym owner has the `isGymOwner` flag and receives full permissions for that gym.
+- Gym staff also use the Owner workspace but receive explicit `StaffPermission` records. Permission checks fail closed.
+- Super Admin has platform-level aggregate access; support access to gym data must be separately approved, scoped and audited.
+- Members may access only their own profile, memberships, payment entries, attendance and bookings.
 
-Members can access only their own profile, membership, payments/receipts, attendance, bookings and assigned plans. Optional health-related details require explicit consent, minimization and separate access controls.
+The first deployment is a single gym, but gym-scoped records carry a `gymId`. Server queries must derive that scope from the authenticated user, not a client-supplied gym ID.
 
-## Consistency rules
+## Data model baseline
 
-- Class reservation: transactionally lock/check capacity, then create booking or waitlist row with idempotency protection.
-- Waitlist: booking records ordered by `createdAt` and stable ID; never a client-managed array.
+The initial schema includes gyms, users, sessions, member profiles, staff permissions, membership plans, memberships, attendance, gym classes, class bookings, payment ledger entries and audit logs. Money is stored as integer paise. Payment entries do not store card details and are not connected to a gateway.
+
+## Consistency rules for upcoming services
+
+- Class reservation: transactionally check capacity and create a booking/waitlist row with idempotency protection.
+- Waitlist: dedicated booking rows ordered by `createdAt` and a stable ID; never a client-managed array.
 - Finance: append-only ledger events; corrections are adjustment/refund records with actor and reason.
 - Attendance: deduplicate scans and retain actor/source metadata.
-- Media: public gallery and private member documents use different access policies; use short-lived upload URLs after server-side validation.
+- Media: public gallery and private member documents require different access policies and scoped short-lived upload/download URLs.
 
 ## Fitness calculations
 
