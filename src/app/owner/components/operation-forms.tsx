@@ -3,9 +3,13 @@
 import { useActionState } from "react";
 import {
   assignMembershipAction,
+  bookGymClassAction,
+  cancelGymClassBookingAction,
+  createGymClassAction,
   createMemberAction,
   createMembershipPlanAction,
   createStaffAction,
+  recordAttendanceAction,
   recordPaymentAction,
   setMembershipPlanActiveAction,
   updateMemberStatusAction,
@@ -184,4 +188,68 @@ export function PaymentCreateForm({ members }: { members: MemberOption[] }) {
     <Notice state={state} />
     {!members.length && <p className="mt-3 text-[11px] text-white/35">Add a member record before entering a payment.</p>}
   </section>;
+}
+
+
+export function AttendanceCreateForm({ members }: { members: MemberOption[] }) {
+  const [state, action, pending] = useActionState(recordAttendanceAction, initial);
+  return <section className="surface rounded-2xl p-5 md:p-6">
+    <p className="eyebrow">Daily check-in</p>
+    <h2 className="mt-2 text-lg font-extrabold">Record attendance</h2>
+    <form action={action} className="mt-5 space-y-4">
+      <label className="block">
+        <span className="mb-2 block text-xs font-semibold text-white/65">Active member</span>
+        <select name="memberId" required defaultValue="" className="w-full rounded-xl border border-white/10 bg-[#111612] px-3.5 py-3 text-sm text-white">
+          <option value="" disabled>Select a member</option>
+          {members.map((member) => <option key={member.id} value={member.id}>{member.name} · {member.email}</option>)}
+        </select>
+      </label>
+      <label className="block">
+        <span className="mb-2 block text-xs font-semibold text-white/65">Note (optional)</span>
+        <textarea name="note" maxLength={300} rows={2} className="w-full rounded-xl border border-white/10 bg-[#111612] px-3.5 py-3 text-sm text-white outline-none focus:border-[#b6f36a]/60" />
+      </label>
+      <button disabled={pending || !members.length} className="w-full rounded-full bg-[#b6f36a] px-5 py-3.5 text-xs font-black text-[#090b0a] disabled:opacity-50">{pending ? "Recording…" : "Record check-in"}</button>
+    </form>
+    <Notice state={state} />
+    {!members.length && <p className="mt-3 text-[11px] text-white/35">Only active members with a valid membership today can be checked in.</p>}
+  </section>;
+}
+
+export function GymClassCreateForm() {
+  const [state, action, pending] = useActionState(createGymClassAction, initial);
+  return <section className="surface rounded-2xl p-5 md:p-6">
+    <p className="eyebrow">Class schedule</p>
+    <h2 className="mt-2 text-lg font-extrabold">Schedule a class</h2>
+    <p className="mt-2 text-xs leading-5 text-white/40">Times are interpreted in the gym's configured timezone. Published classes become available to members with an active membership.</p>
+    <form action={action} className="mt-5 grid gap-4 md:grid-cols-2">
+      <div className="md:col-span-2"><Field label="Class name" name="name" required placeholder="Strength & conditioning" /></div>
+      <Field label="Starts at" name="startsAt" type="datetime-local" required />
+      <Field label="Ends at" name="endsAt" type="datetime-local" required />
+      <Field label="Capacity" name="capacity" type="number" required min="1" placeholder="20" />
+      <label className="block md:col-span-2">
+        <span className="mb-2 block text-xs font-semibold text-white/65">Description (optional)</span>
+        <textarea name="description" maxLength={500} rows={2} className="w-full rounded-xl border border-white/10 bg-[#111612] px-3.5 py-3 text-sm text-white outline-none focus:border-[#b6f36a]/60" />
+      </label>
+      <div className="md:col-span-2"><button disabled={pending} className="w-full rounded-full bg-[#b6f36a] px-5 py-3.5 text-xs font-black text-[#090b0a] disabled:opacity-50">{pending ? "Scheduling…" : "Schedule and publish class"}</button></div>
+    </form>
+    <Notice state={state} />
+  </section>;
+}
+
+export function ClassBookingForm({ classId }: { classId: string }) {
+  const [state, action, pending] = useActionState(bookGymClassAction, initial);
+  return <form action={action} className="mt-4">
+    <input type="hidden" name="classId" value={classId} />
+    <button disabled={pending} className="rounded-full bg-[#b6f36a] px-4 py-2.5 text-[11px] font-black text-[#090b0a] disabled:opacity-50">{pending ? "Booking…" : "Book class"}</button>
+    <p role="status" className="mt-2 text-[11px] text-white/50">{state.message}</p>
+  </form>;
+}
+
+export function ClassBookingCancelForm({ classId }: { classId: string }) {
+  const [state, action, pending] = useActionState(cancelGymClassBookingAction, initial);
+  return <form action={action} className="mt-4">
+    <input type="hidden" name="classId" value={classId} />
+    <button disabled={pending} className="rounded-full border border-white/15 px-4 py-2.5 text-[11px] font-bold text-white/65 disabled:opacity-50">{pending ? "Cancelling…" : "Cancel booking"}</button>
+    <p role="status" className="mt-2 text-[11px] text-white/50">{state.message}</p>
+  </form>;
 }
