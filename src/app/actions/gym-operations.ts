@@ -166,7 +166,7 @@ const memberProfileSchema = z.object({
   phone: z.string().trim().max(24).optional(),
   emergencyContactName: z.string().trim().max(100).optional(),
   emergencyContactPhone: z.string().trim().max(24).optional(),
-  dateOfBirth: z.union([z.literal(""), z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/)]).optional(),
+  dateOfBirth: z.union([z.literal(""), z.string().regex(/^\d{4}-\d{2}-\d{2}$/)]).optional(),
 });
 
 export async function updateMemberProfileAction(
@@ -216,14 +216,24 @@ export async function updateMemberProfileAction(
 
       const member = await tx.user.findFirst({
         where: { id: parsed.data.memberId, gymId: context.gymId, role: Role.MEMBER },
-        select: { id: true },
+        select: { id: true, email: true, status: true },
       });
       if (!member) throw new Error("MEMBER_NOT_FOUND");
 
+      const emailChanged = member.email !== parsed.data.email;
       await tx.user.update({
         where: { id: member.id },
         data: { name: parsed.data.name, email: parsed.data.email },
       });
+      if (emailChanged) {
+        await tx.session.deleteMany({ where: { userId: member.id } });
+        if (member.status === UserStatus.INVITED) {
+          await tx.accountInvitation.updateMany({
+            where: { userId: member.id, consumedAt: null, revokedAt: null },
+            data: { revokedAt: new Date() },
+          });
+        }
+      }
       await tx.memberProfile.upsert({
         where: { userId: member.id },
         update: {
@@ -262,7 +272,7 @@ export async function updateMemberProfileAction(
   revalidatePath("/owner/members");
   revalidatePath("/owner");
   revalidatePath("/member");
-  return { ok: true, message: "Member profile updated." };
+  return { ok: true, message: "Member profile updated. Sessions are revoked after an email change; invited members need a new activation link if their email was changed." };
 }
 
 export async function updateMemberStatusAction(
