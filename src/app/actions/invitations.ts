@@ -18,7 +18,7 @@ const activationSchema = z.object({
     .min(12)
     .max(128)
     .refine((value) => Buffer.byteLength(value, "utf8") <= 72),
-  confirmPassword: z.string().min(1),
+  confirmPassword: z.string().min(1).max(128),
 }).refine((value) => value.password === value.confirmPassword, {
   path: ["confirmPassword"],
   message: "Passwords do not match.",
