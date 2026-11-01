@@ -815,7 +815,7 @@ export async function recordPaymentAction(
   if (amountPaise === null) return { ok: false, message: "Payment amount must be greater than zero." };
 
   const member = await prisma.user.findFirst({
-    where: { id: parsed.data.memberId, gymId: context.gymId, role: Role.MEMBER },
+    where: { id: parsed.data.memberId, gymId: context.gymId, role: Role.MEMBER, status: { not: UserStatus.ARCHIVED } },
     select: { id: true },
   });
   if (!member) return { ok: false, message: "Member not found in your gym." };
