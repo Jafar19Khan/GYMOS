@@ -23,7 +23,7 @@ export function addCalendarDays(dateOnly: string, days: number): string {
 }
 
 export function localDateTimeToUtc(value: string, timeZone: string): Date | null {
-  const match = /^(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}):(\\d{2})$/.exec(value);
+  const match = /^([0-9]{4})-([0-9]{2})-([0-9]{2})T([0-9]{2}):([0-9]{2})$/.exec(value);
   if (!match) return null;
 
   const [, yearText, monthText, dayText, hourText, minuteText] = match;
@@ -40,17 +40,17 @@ export function localDateTimeToUtc(value: string, timeZone: string): Date | null
   ) return null;
 
   let candidate = targetUtc;
-  const formatter = new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  });
-
   try {
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    });
+
     for (let attempt = 0; attempt < 4; attempt += 1) {
       const parts = formatter.formatToParts(new Date(candidate));
       const part = (type: Intl.DateTimeFormatPartTypes) =>
