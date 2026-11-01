@@ -40,7 +40,7 @@ export function canDelegateGymPermissions(
 export type ManagedStaffStatus = "ACTIVE" | "SUSPENDED" | "INVITED";
 
 export function canTransitionStaffStatus(
-  currentStatus: ManagedStaffStatus,
+  currentStatus: string,
   nextStatus: "ACTIVE" | "SUSPENDED",
 ): boolean {
   return (
