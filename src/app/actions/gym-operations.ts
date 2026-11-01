@@ -14,8 +14,6 @@ export type ActionState = {
   message: string;
 };
 
-const emptyState: ActionState = { ok: false, message: "" };
-
 async function ownerContext(permission: (typeof GYM_PERMISSIONS)[number]) {
   const user = await getCurrentUser();
   if (!user || user.role !== Role.OWNER || !user.gymId) {
@@ -43,7 +41,7 @@ const memberSchema = z.object({
 });
 
 export async function createMemberAction(
-  _previous: ActionState = emptyState,
+  _previous: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
   const context = await ownerContext("members.write");
@@ -101,7 +99,7 @@ export async function createMemberAction(
 }
 
 export async function updateMemberStatusAction(
-  _previous: ActionState = emptyState,
+  _previous: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
   const context = await ownerContext("members.suspend");
@@ -152,7 +150,7 @@ const staffSchema = z.object({
 });
 
 export async function createStaffAction(
-  _previous: ActionState = emptyState,
+  _previous: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
   const context = await ownerContext("staff.manage");
@@ -209,7 +207,7 @@ export async function createStaffAction(
 }
 
 export async function updateStaffPermissionsAction(
-  _previous: ActionState = emptyState,
+  _previous: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
   const context = await ownerContext("staff.manage");
@@ -253,11 +251,11 @@ const planSchema = z.object({
   name: z.string().trim().min(2).max(80),
   description: z.string().trim().max(500).optional(),
   durationDays: z.coerce.number().int().min(1).max(3650),
-  price: z.string().regex(/^\\d{1,7}(?:\\.\\d{1,2})?$/, "Enter a valid price with up to two decimals."),
+  price: z.string().regex(/^\d{1,7}(?:\\.\d{1,2})?$/, "Enter a valid price with up to two decimals."),
 });
 
 export async function createMembershipPlanAction(
-  _previous: ActionState = emptyState,
+  _previous: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
   const context = await ownerContext("memberships.manage");
@@ -306,7 +304,7 @@ export async function createMembershipPlanAction(
 }
 
 export async function setMembershipPlanActiveAction(
-  _previous: ActionState = emptyState,
+  _previous: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
   const context = await ownerContext("memberships.manage");
@@ -338,11 +336,11 @@ export async function setMembershipPlanActiveAction(
 const membershipSchema = z.object({
   memberId: z.string().uuid(),
   planId: z.string().uuid(),
-  startDate: z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 });
 
 export async function assignMembershipAction(
-  _previous: ActionState = emptyState,
+  _previous: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
   const context = await ownerContext("memberships.manage");
@@ -413,14 +411,14 @@ export async function assignMembershipAction(
 
 const paymentSchema = z.object({
   memberId: z.string().uuid(),
-  amount: z.string().regex(/^\\d{1,7}(?:\\.\\d{1,2})?$/),
+  amount: z.string().regex(/^\d{1,7}(?:\\.\d{1,2})?$/),
   method: z.nativeEnum(PaymentMethod),
   reference: z.string().trim().max(120).optional(),
   note: z.string().trim().max(500).optional(),
 });
 
 export async function recordPaymentAction(
-  _previous: ActionState = emptyState,
+  _previous: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
   const context = await ownerContext("finance.write");
