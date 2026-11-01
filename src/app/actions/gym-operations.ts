@@ -1039,14 +1039,13 @@ export async function bookGymClassAction(
   formData: FormData,
 ): Promise<ActionState> {
   const user = await getCurrentUser();
-  if (!user || user.role !== Role.MEMBER || !gymId) {
+  if (!user || user.role !== Role.MEMBER || !user.gymId) {
     return { ok: false, message: "Sign in with an active member account to book a class." };
   }
 
+  const gymId = user.gymId;
   const parsed = classBookingSchema.safeParse({ classId: readText(formData, "classId") });
   if (!parsed.success) return { ok: false, message: "Select a valid class." };
-
-  const gymId = user.gymId;
   const timeZone = user.gym?.timezone ?? "Asia/Kolkata";
   const today = dateOnlyInTimeZone(new Date(), timeZone);
   const todayDate = new Date(`${today}T00:00:00.000Z`);
