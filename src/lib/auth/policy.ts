@@ -35,3 +35,16 @@ export function canDelegateGymPermissions(
   const assigned = new Set(assignedPermissions);
   return requestedPermissions.every((permission) => assigned.has(permission));
 }
+
+
+export type ManagedStaffStatus = "ACTIVE" | "SUSPENDED" | "INVITED";
+
+export function canTransitionStaffStatus(
+  currentStatus: ManagedStaffStatus,
+  nextStatus: "ACTIVE" | "SUSPENDED",
+): boolean {
+  return (
+    (currentStatus === "ACTIVE" && nextStatus === "SUSPENDED") ||
+    (currentStatus === "SUSPENDED" && nextStatus === "ACTIVE")
+  );
+}
