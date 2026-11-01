@@ -26,7 +26,7 @@ Next.js App Router, TypeScript, Tailwind CSS, Framer Motion, PostgreSQL, Prisma,
 - `docker/` — local container orchestration
 - `infrastructure/terraform/` — IaC baseline; never auto-applied
 - `.github/workflows/` — CI, dependency audit and Terraform validation
-- `docs/` — architecture, security, roadmap, design, cost and operations notes
+- `docs/` — Windows runbook, architecture, security, roadmap, design, cost and operations notes
 - `tests/` — auth, invitation, date and money-conversion unit tests
 
 ## Run locally with Docker
@@ -75,4 +75,4 @@ Implemented: public landing page, local container setup, PostgreSQL schema/migra
 
 Still pending: invitation email delivery, TOTP MFA/account recovery, private image/video storage and gallery, trainer profiles/booking, notification delivery, audit retention policy, full E2E/IDOR/concurrency coverage, external monitoring/alerting, verified backup restore drills and cloud deployment approval. This project is not production-ready yet.
 
-For Windows run, quality checks, backup and restore see [local operations](docs/OPERATIONS.md). Also see [architecture](docs/ARCHITECTURE.md), [security](docs/SECURITY.md), [roadmap](docs/ROADMAP.md) and [design system](docs/DESIGN-SYSTEM.md).
+For step-by-step Windows setup, startup, checks, backup and troubleshooting, follow the [GYMOS Runbook](docs/RUNBOOK.md). Also see [operations](docs/OPERATIONS.md), [architecture](docs/ARCHITECTURE.md), [security](docs/SECURITY.md), [roadmap](docs/ROADMAP.md) and [design system](docs/DESIGN-SYSTEM.md).
