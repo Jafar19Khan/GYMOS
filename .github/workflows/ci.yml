@@ -64,8 +64,8 @@ jobs:
         run: |
           ready=0
           for attempt in $(seq 1 60); do
-            if curl --fail --silent --show-error http://127.0.0.1:3000/api/health >/dev/null \
-              && curl --fail --silent --show-error http://127.0.0.1:3000/api/ready; then
+            if curl --connect-timeout 2 --max-time 5 --fail --silent --show-error http://127.0.0.1:3000/api/health >/dev/null \
+              && curl --connect-timeout 2 --max-time 5 --fail --silent --show-error http://127.0.0.1:3000/api/ready; then
               ready=1
               break
             fi
