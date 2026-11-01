@@ -54,12 +54,12 @@ export default async function OwnerDashboard() {
       <Metric label="Payment records" value={paymentRecords} detail="Staff-entered ledger records" />
     </div>
     <section className="surface mt-6 rounded-2xl p-6">
-      <h2 className="text-lg font-extrabold">Next operational modules</h2>
+      <h2 className="text-lg font-extrabold">Operational status</h2>
       <p className="mt-2 max-w-3xl text-sm leading-7 text-white/50">
-        Member and staff management, membership plans, manual payment ledger, QR attendance,
-        capacity-safe class booking, workout plans and website CMS are the next domain milestones.
+        Your workspace supports member and staff administration, memberships, manual attendance,
+        capacity-safe class booking, and a reconciled staff-entered payment ledger with printable receipts.
       </p>
-      <p className="mt-4 text-xs text-[#b6f36a]">No payment gateway is connected. Payment totals are intentionally not presented until ledger reconciliation is implemented.</p>
+      <p className="mt-4 text-xs text-[#b6f36a]">Payments are recorded manually. No bank, UPI or card gateway is connected.</p>
     </section>
   </AppShell>;
 }
