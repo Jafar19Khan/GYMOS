@@ -95,6 +95,8 @@ const permissions = [
   ["reports.read", "View reports"],
   ["cms.manage", "Manage website content"],
   ["media.manage", "Manage media"],
+  ["fitness.read", "View fitness plans and progress"],
+  ["fitness.manage", "Manage workouts and diet plans"],
   ["settings.manage", "Manage gym settings"],
 ] as const;
 
