@@ -136,7 +136,6 @@ server {
 }
 NGINX
 rm -f /etc/nginx/conf.d/default.conf
-nginx -t
 
 NPM_BIN="$(command -v npm)"
 cat > /etc/systemd/system/gymos.service <<UNIT
@@ -168,6 +167,7 @@ systemctl daemon-reload
 systemctl enable --now amazon-ssm-agent
 systemctl enable --now postgresql
 systemctl enable --now gymos-public-ip.service
+nginx -t
 systemctl enable --now nginx.service
 
 echo "GYMOS host bootstrap completed. Deploy the application from PowerShell next."
