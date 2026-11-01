@@ -28,8 +28,9 @@
 - [ ] Member profile editing, search, pagination, export and deletion lifecycle
 - [ ] Staff suspension/reactivation and staff invitation lifecycle
 - [ ] Refund/adjustment workflows, receipts and date-range finance reconciliation
-- [ ] Manual/QR attendance
-- [ ] Class scheduling, transactional capacity and FIFO waitlist
+- [x] Manual attendance with active-membership validation and duplicate same-day protection
+- [ ] QR attendance
+- [x] Class scheduling, member booking, transactional capacity and FIFO waitlist promotion
 - [ ] Audit event review UI and retention controls
 
 ## Milestone 3 — Fitness and content
