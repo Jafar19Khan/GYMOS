@@ -73,6 +73,12 @@ model Gym {
   permissions  StaffPermission[]
   auditLogs    AuditLog[]
   invitations  AccountInvitation[]
+  workoutPlans WorkoutPlan[]
+  workoutSessions WorkoutSession[]
+  dietPlans DietPlan[]
+  progressEntries ProgressEntry[]
+  announcements Announcement[]
+  websiteSettings GymWebsite?
 
   @@map("gyms")
 }
@@ -103,6 +109,14 @@ model User {
   auditLogs          AuditLog[]        @relation("AuditActor")
   receivedInvitations AccountInvitation[] @relation("InvitationRecipient")
   createdInvitations  AccountInvitation[] @relation("InvitationCreator")
+  assignedWorkoutPlans WorkoutPlan[] @relation("WorkoutPlanMember")
+  createdWorkoutPlans WorkoutPlan[] @relation("WorkoutPlanCreator")
+  workoutSessions WorkoutSession[] @relation("WorkoutSessionMember")
+  assignedDietPlans DietPlan[] @relation("DietPlanMember")
+  createdDietPlans DietPlan[] @relation("DietPlanCreator")
+  progressEntries ProgressEntry[] @relation("ProgressMember")
+  recordedProgressEntries ProgressEntry[] @relation("ProgressRecorder")
+  createdAnnouncements Announcement[] @relation("AnnouncementAuthor")
 
   @@index([gymId, role, status])
   @@map("users")
@@ -336,4 +350,131 @@ model LoginThrottle {
 
   @@index([lockedUntil])
   @@map("login_throttles")
+}
+
+
+model WorkoutPlan {
+  id                  String   @id @default(uuid()) @db.Uuid
+  gymId               String   @db.Uuid
+  memberId            String   @db.Uuid
+  createdById         String   @db.Uuid
+  title               String
+  description         String?
+  exerciseInstructions String
+  startsAt            DateTime?
+  endsAt              DateTime?
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  gym       Gym      @relation(fields: [gymId], references: [id], onDelete: Restrict)
+  member    User     @relation("WorkoutPlanMember", fields: [memberId], references: [id], onDelete: Restrict)
+  createdBy User     @relation("WorkoutPlanCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  sessions  WorkoutSession[]
+
+  @@index([gymId, memberId, isActive])
+  @@index([memberId, createdAt])
+  @@map("workout_plans")
+}
+
+model WorkoutSession {
+  id              String   @id @default(uuid()) @db.Uuid
+  gymId           String   @db.Uuid
+  memberId        String   @db.Uuid
+  workoutPlanId   String   @db.Uuid
+  durationMinutes Int?
+  notes           String?
+  completedAt     DateTime @default(now())
+  createdAt       DateTime @default(now())
+
+  gym   Gym         @relation(fields: [gymId], references: [id], onDelete: Restrict)
+  member User       @relation("WorkoutSessionMember", fields: [memberId], references: [id], onDelete: Restrict)
+  plan   WorkoutPlan @relation(fields: [workoutPlanId], references: [id], onDelete: Restrict)
+
+  @@index([gymId, memberId, completedAt])
+  @@index([workoutPlanId, completedAt])
+  @@map("workout_sessions")
+}
+
+model DietPlan {
+  id             String   @id @default(uuid()) @db.Uuid
+  gymId          String   @db.Uuid
+  memberId       String   @db.Uuid
+  createdById    String   @db.Uuid
+  title          String
+  targetCalories Int
+  proteinGrams   Int
+  carbsGrams     Int
+  fatGrams       Int
+  notes          String?
+  startsAt       DateTime @default(now())
+  endsAt         DateTime?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  gym       Gym  @relation(fields: [gymId], references: [id], onDelete: Restrict)
+  member    User @relation("DietPlanMember", fields: [memberId], references: [id], onDelete: Restrict)
+  createdBy User @relation("DietPlanCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([gymId, memberId, isActive])
+  @@index([memberId, startsAt])
+  @@map("diet_plans")
+}
+
+model ProgressEntry {
+  id           String   @id @default(uuid()) @db.Uuid
+  gymId        String   @db.Uuid
+  memberId     String   @db.Uuid
+  recordedById String?  @db.Uuid
+  metric       String
+  value        Float
+  unit         String
+  note         String?
+  measuredAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
+
+  gym        Gym  @relation(fields: [gymId], references: [id], onDelete: Restrict)
+  member     User @relation("ProgressMember", fields: [memberId], references: [id], onDelete: Restrict)
+  recordedBy User? @relation("ProgressRecorder", fields: [recordedById], references: [id], onDelete: SetNull)
+
+  @@index([gymId, memberId, metric, measuredAt])
+  @@map("progress_entries")
+}
+
+model Announcement {
+  id          String    @id @default(uuid()) @db.Uuid
+  gymId       String    @db.Uuid
+  createdById String    @db.Uuid
+  title       String
+  body        String
+  audience    String    @default("MEMBERS")
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  gym       Gym  @relation(fields: [gymId], references: [id], onDelete: Restrict)
+  createdBy User @relation("AnnouncementAuthor", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([gymId, publishedAt])
+  @@map("announcements")
+}
+
+model GymWebsite {
+  id            String   @id @default(uuid()) @db.Uuid
+  gymId         String   @unique @db.Uuid
+  heroTitle     String
+  heroSubtitle  String
+  aboutText     String
+  facilitiesText String
+  address       String?
+  contactEmail  String?
+  contactPhone  String?
+  isPublished   Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  gym Gym @relation(fields: [gymId], references: [id], onDelete: Restrict)
+
+  @@map("gym_websites")
 }
