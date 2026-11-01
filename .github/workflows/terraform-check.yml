@@ -22,5 +22,7 @@ jobs:
         with:
           terraform_version: 1.9.8
       - run: terraform fmt -check -recursive
+      - name: Check EC2 bootstrap shell syntax
+        run: bash -n user_data.sh
       - run: terraform init -backend=false
       - run: terraform validate
