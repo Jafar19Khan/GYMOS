@@ -204,6 +204,8 @@ export async function updateMemberProfileAction(
   });
   if (duplicateEmail) return { ok: false, message: "Another account already uses this email address." };
 
+  let emailChanged = false;
+  let invitationRevoked = false;
   try {
     await prisma.$transaction(async (tx) => {
       const lockedMember = await tx.$queryRaw<Array<{ id: string }>>`
@@ -220,7 +222,7 @@ export async function updateMemberProfileAction(
       });
       if (!member) throw new Error("MEMBER_NOT_FOUND");
 
-      const emailChanged = member.email !== parsed.data.email;
+      emailChanged = member.email !== parsed.data.email;
       await tx.user.update({
         where: { id: member.id },
         data: { name: parsed.data.name, email: parsed.data.email },
@@ -228,10 +230,11 @@ export async function updateMemberProfileAction(
       if (emailChanged) {
         await tx.session.deleteMany({ where: { userId: member.id } });
         if (member.status === UserStatus.INVITED) {
-          await tx.accountInvitation.updateMany({
+          const revoked = await tx.accountInvitation.updateMany({
             where: { userId: member.id, consumedAt: null, revokedAt: null },
             data: { revokedAt: new Date() },
           });
+          invitationRevoked = revoked.count > 0;
         }
       }
       await tx.memberProfile.upsert({
@@ -272,7 +275,12 @@ export async function updateMemberProfileAction(
   revalidatePath("/owner/members");
   revalidatePath("/owner");
   revalidatePath("/member");
-  return { ok: true, message: "Member profile updated. Sessions are revoked after an email change; invited members need a new activation link if their email was changed." };
+  const message = invitationRevoked
+    ? "Member profile updated. The previous activation link was revoked; generate and share a new link."
+    : emailChanged
+      ? "Member profile updated. Existing sessions were revoked because the email address changed."
+      : "Member profile updated.";
+  return { ok: true, message };
 }
 
 export async function updateMemberStatusAction(
