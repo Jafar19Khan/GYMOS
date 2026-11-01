@@ -8,7 +8,7 @@ type AppShellProps = {
   eyebrow: string;
   userName: string;
   roleLabel: string;
-  children: React.ReactNode;
+  children?: React.ReactNode;
 };
 
 export default function AppShell({
