@@ -1210,3 +1210,206 @@ export async function issueAccountInvitationAction(
   revalidatePath(accountType === "MEMBER" ? "/owner/members" : "/owner/staff");
   return { ok: true, message: "New 48-hour activation link generated. Previous unused links are revoked; share this link only with the intended recipient.", invitationUrl };
 }
+
+
+const ledgerCorrectionSchema = z.object({
+  paymentId: z.string().uuid(),
+  amount: z.string().regex(/^\\d{1,7}(?:\\.\\d{1,2})?$/),
+  note: z.string().trim().min(3).max(500),
+  reference: z.string().trim().max(120).optional(),
+});
+
+export async function recordRefundAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const context = await ownerContext("finance.refund");
+  if ("error" in context) return { ok: false, message: context.error };
+
+  const parsed = ledgerCorrectionSchema.extend({
+    method: z.nativeEnum(PaymentMethod),
+  }).safeParse({
+    paymentId: readText(formData, "paymentId"),
+    amount: readText(formData, "amount"),
+    method: readText(formData, "method"),
+    note: readText(formData, "note"),
+    reference: readText(formData, "reference") || undefined,
+  });
+  if (!parsed.success) return { ok: false, message: "Enter a valid refund amount, return method and reason." };
+
+  const amountPaise = parseRupeesToPaise(parsed.data.amount);
+  if (amountPaise === null) return { ok: false, message: "Refund amount must be greater than zero." };
+
+  const refundId = randomUUID();
+  try {
+    await prisma.$transaction(async (tx) => {
+      const lockedCharge = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT "id" FROM "payments"
+        WHERE "id" = ${parsed.data.paymentId}::uuid
+          AND "gymId" = ${context.gymId}::uuid
+          AND "type" = 'CHARGE'::"PaymentType"
+        FOR UPDATE
+      `;
+      if (!lockedCharge.length) throw new Error("CHARGE_NOT_FOUND");
+
+      const charge = await tx.payment.findFirst({
+        where: { id: parsed.data.paymentId, gymId: context.gymId, type: PaymentType.CHARGE },
+        select: { id: true, memberId: true, amountPaise: true },
+      });
+      if (!charge) throw new Error("CHARGE_NOT_FOUND");
+
+      const [refunds, adjustments] = await Promise.all([
+        tx.payment.aggregate({
+          where: { relatedPaymentId: charge.id, type: PaymentType.REFUND },
+          _sum: { amountPaise: true },
+        }),
+        tx.payment.aggregate({
+          where: { relatedPaymentId: charge.id, type: PaymentType.ADJUSTMENT },
+          _sum: { amountPaise: true },
+        }),
+      ]);
+      const outstanding = charge.amountPaise
+        + (adjustments._sum.amountPaise ?? 0)
+        - (refunds._sum.amountPaise ?? 0);
+      if (amountPaise > outstanding) throw new Error("REFUND_EXCEEDS_BALANCE");
+
+      await tx.payment.create({
+        data: {
+          id: refundId,
+          gymId: context.gymId,
+          memberId: charge.memberId,
+          createdById: context.user.id,
+          type: PaymentType.REFUND,
+          method: parsed.data.method,
+          amountPaise,
+          relatedPaymentId: charge.id,
+          reference: parsed.data.reference || null,
+          note: parsed.data.note,
+          idempotencyKey: randomUUID(),
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorId: context.user.id,
+          gymId: context.gymId,
+          event: "payment.refund_recorded",
+          resourceType: "payment",
+          resourceId: refundId,
+          metadata: { relatedPaymentId: charge.id, amountPaise, method: parsed.data.method },
+        },
+      });
+    });
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "";
+    const messages: Record<string, string> = {
+      CHARGE_NOT_FOUND: "Original charge was not found in this gym.",
+      REFUND_EXCEEDS_BALANCE: "Refund exceeds the remaining refundable amount for this charge.",
+    };
+    return { ok: false, message: messages[reason] ?? "Refund could not be recorded. Please retry." };
+  }
+
+  revalidatePath("/owner/payments");
+  revalidatePath("/owner");
+  revalidatePath("/member/payments");
+  revalidatePath("/member");
+  return { ok: true, message: "Refund recorded as a separate ledger entry. The original charge remains unchanged." };
+}
+
+export async function recordAdjustmentAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const context = await ownerContext("finance.refund");
+  if ("error" in context) return { ok: false, message: context.error };
+
+  const parsed = ledgerCorrectionSchema.extend({
+    direction: z.enum(["INCREASE", "DECREASE"]),
+  }).safeParse({
+    paymentId: readText(formData, "paymentId"),
+    amount: readText(formData, "amount"),
+    direction: readText(formData, "direction"),
+    note: readText(formData, "note"),
+    reference: readText(formData, "reference") || undefined,
+  });
+  if (!parsed.success) return { ok: false, message: "Enter a valid adjustment amount, direction and reason." };
+
+  const parsedAmount = parseRupeesToPaise(parsed.data.amount);
+  if (parsedAmount === null) return { ok: false, message: "Adjustment amount must be greater than zero." };
+  const amountPaise = parsed.data.direction === "DECREASE" ? -parsedAmount : parsedAmount;
+  const adjustmentId = randomUUID();
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const lockedCharge = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT "id" FROM "payments"
+        WHERE "id" = ${parsed.data.paymentId}::uuid
+          AND "gymId" = ${context.gymId}::uuid
+          AND "type" = 'CHARGE'::"PaymentType"
+        FOR UPDATE
+      `;
+      if (!lockedCharge.length) throw new Error("CHARGE_NOT_FOUND");
+
+      const charge = await tx.payment.findFirst({
+        where: { id: parsed.data.paymentId, gymId: context.gymId, type: PaymentType.CHARGE },
+        select: { id: true, memberId: true, amountPaise: true, method: true },
+      });
+      if (!charge) throw new Error("CHARGE_NOT_FOUND");
+
+      const [refunds, adjustments] = await Promise.all([
+        tx.payment.aggregate({
+          where: { relatedPaymentId: charge.id, type: PaymentType.REFUND },
+          _sum: { amountPaise: true },
+        }),
+        tx.payment.aggregate({
+          where: { relatedPaymentId: charge.id, type: PaymentType.ADJUSTMENT },
+          _sum: { amountPaise: true },
+        }),
+      ]);
+      const currentBalance = charge.amountPaise
+        + (adjustments._sum.amountPaise ?? 0)
+        - (refunds._sum.amountPaise ?? 0);
+      if (amountPaise < 0 && Math.abs(amountPaise) > currentBalance) {
+        throw new Error("ADJUSTMENT_EXCEEDS_BALANCE");
+      }
+
+      await tx.payment.create({
+        data: {
+          id: adjustmentId,
+          gymId: context.gymId,
+          memberId: charge.memberId,
+          createdById: context.user.id,
+          type: PaymentType.ADJUSTMENT,
+          method: charge.method,
+          amountPaise,
+          relatedPaymentId: charge.id,
+          reference: parsed.data.reference || null,
+          note: parsed.data.note,
+          idempotencyKey: randomUUID(),
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorId: context.user.id,
+          gymId: context.gymId,
+          event: "payment.adjustment_recorded",
+          resourceType: "payment",
+          resourceId: adjustmentId,
+          metadata: { relatedPaymentId: charge.id, amountPaise, direction: parsed.data.direction },
+        },
+      });
+    });
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "";
+    const messages: Record<string, string> = {
+      CHARGE_NOT_FOUND: "Original charge was not found in this gym.",
+      ADJUSTMENT_EXCEEDS_BALANCE: "A decrease cannot exceed the remaining balance of this charge.",
+    };
+    return { ok: false, message: messages[reason] ?? "Adjustment could not be recorded. Please retry." };
+  }
+
+  revalidatePath("/owner/payments");
+  revalidatePath("/owner");
+  revalidatePath("/member/payments");
+  revalidatePath("/member");
+  return { ok: true, message: "Adjustment recorded as a separate signed ledger entry." };
+}
