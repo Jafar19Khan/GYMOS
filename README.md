@@ -52,8 +52,9 @@ The Owner workspace links to Members, Staff, Plans, Payments, Attendance and Cla
 - The member directory supports search, pagination, permission-checked CSV export and anonymizing archive. Archived member profiles are removed from active lists while ledger and membership history are retained.
 - Staff managers can suspend/reactivate staff accounts. Suspension revokes active sessions; staff cannot suspend themselves or bypass invitation activation.
 - Membership plans store duration in days and price as integer paise. Membership assignment checks date overlap and serializes assignments for the same member.
-- Attendance supports manual check-in for active members with a valid membership, once per gym-local day.
+- Attendance supports manual and signed QR check-in for active members with a valid membership, once per gym-local day. QR codes expire after 60 seconds; the signing secret is configured locally.
 - Classes can be scheduled in the gym timezone. Active members can book; capacity is serialized in a database transaction and cancellations promote the oldest waitlisted member first.
+- Workout plans, member workout logs, diet targets, progress measurements, gym announcements and a text-based per-gym website CMS are available. Members can only view their own fitness data.
 - The payment ledger supports manual charges, linked refunds, signed adjustments, printable receipt records and date-range reconciliation. No payment gateway is connected.
 
 ## Authentication and security
@@ -62,7 +63,7 @@ Passwords are bcrypt-hashed. Login creates a cryptographically random opaque ses
 
 The three top-level roles are enforced on the server. Gym staff accounts use the Owner workspace but receive only explicitly granted permissions; the primary gym owner has the full gym permission set. Members can query only records associated with their own user ID. Public self-registration is disabled; privileged accounts are created by an operator-controlled seed process.
 
-This is a security foundation, not a production security certification. Login throttling, MFA, account recovery, provider-backed invitation email, full audit coverage, comprehensive member/tenant isolation tests and security review remain required before public production use.
+This is a working local-first release candidate, not a production security certification. Login throttling is enabled. MFA, secure account recovery, provider-backed invitation email, private media storage, external monitoring, comprehensive E2E/IDOR/concurrency tests and an independent security review remain required before public production use.
 
 ## Cost gate
 
@@ -72,6 +73,6 @@ The AWS account and Mumbai-region usage must be reviewed against current account
 
 Implemented: public landing page, local container setup, PostgreSQL schema/migrations and bootstrap seed, session login/logout, role routing, role-protected dashboards, secure member/staff invitation and password activation, staff permission maintenance, membership plans and assignment, manual attendance, class scheduling and FIFO bookings/waitlist, staff-entered payment entries, audit events, and CI/security workflows.
 
-Still pending: invitation email delivery, QR attendance, workout/diet/progress modules, configurable public CMS/media, MFA/account recovery, login rate limiting, complete audit review/retention UI, automated E2E/security integration coverage, external monitoring/alerting, and cloud deployment approval. This project is not production-ready yet.
+Still pending: invitation email delivery, TOTP MFA/account recovery, private image/video storage and gallery, trainer profiles/booking, notification delivery, audit retention policy, full E2E/IDOR/concurrency coverage, external monitoring/alerting, verified backup restore drills and cloud deployment approval. This project is not production-ready yet.
 
 For Windows run, quality checks, backup and restore see [local operations](docs/OPERATIONS.md). Also see [architecture](docs/ARCHITECTURE.md), [security](docs/SECURITY.md), [roadmap](docs/ROADMAP.md) and [design system](docs/DESIGN-SYSTEM.md).
