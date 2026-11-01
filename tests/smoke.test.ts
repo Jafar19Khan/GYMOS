@@ -2,7 +2,7 @@ import { Role } from "@prisma/client";
 import { describe, expect, it } from "vitest";
 import { getDashboardPath } from "../src/lib/auth/role-routing";
 import { loginPayloadSchema } from "../src/lib/auth/schemas";
-import { canDelegateGymPermissions, isGymPermissionGranted } from "../src/lib/auth/policy";
+import { canDelegateGymPermissions, canTransitionStaffStatus, isGymPermissionGranted } from "../src/lib/auth/policy";
 
 describe("role-based dashboard routing", () => {
   it("routes each application role to its own dashboard", () => {
@@ -57,5 +57,23 @@ describe("login payload validation", () => {
   it("rejects weak and overlong bcrypt passwords", () => {
     expect(loginPayloadSchema.safeParse({ email: "member@example.com", password: "short" }).success).toBe(false);
     expect(loginPayloadSchema.safeParse({ email: "member@example.com", password: "é".repeat(37) }).success).toBe(false);
+  });
+});
+
+
+describe("staff account status transitions", () => {
+  it("allows active staff to be suspended and suspended staff to be reactivated", () => {
+    expect(canTransitionStaffStatus("ACTIVE", "SUSPENDED")).toBe(true);
+    expect(canTransitionStaffStatus("SUSPENDED", "ACTIVE")).toBe(true);
+  });
+
+  it("does not allow invited staff to bypass invitation activation", () => {
+    expect(canTransitionStaffStatus("INVITED", "ACTIVE")).toBe(false);
+    expect(canTransitionStaffStatus("INVITED", "SUSPENDED")).toBe(false);
+  });
+
+  it("does not allow redundant status changes", () => {
+    expect(canTransitionStaffStatus("ACTIVE", "ACTIVE")).toBe(false);
+    expect(canTransitionStaffStatus("SUSPENDED", "SUSPENDED")).toBe(false);
   });
 });
