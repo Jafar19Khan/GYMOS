@@ -1,6 +1,6 @@
 import { Role, UserStatus } from "@prisma/client";
 import AppShell from "@/app/components/app-shell";
-import { StaffCreateForm, StaffPermissionsForm } from "@/app/owner/components/operation-forms";
+import { IssueInvitationForm, StaffCreateForm, StaffPermissionsForm } from "@/app/owner/components/operation-forms";
 import { requireRole } from "@/lib/auth/guards";
 import { hasGymPermission } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/prisma";
@@ -35,13 +35,14 @@ export default async function StaffPage() {
             </div>
             <p className="mt-3 text-[10px] font-bold uppercase tracking-widest text-white/35">Granted permissions</p>
             <div className="mt-2 flex flex-wrap gap-2">{person.permissions.length ? person.permissions.map((p) => <span key={p.id} className="rounded-md bg-white/5 px-2 py-1 text-[10px] text-white/60">{p.permission}</span>) : <span className="text-xs text-white/35">No permissions assigned</span>}</div>
+            {person.status === UserStatus.INVITED && canManage && <IssueInvitationForm targetId={person.id} accountType="STAFF" />}
             {canManage && <details className="mt-4 border-t border-white/10 pt-3">
               <summary className="cursor-pointer text-xs font-bold text-[#b6f36a]">Edit permissions</summary>
               <StaffPermissionsForm staffId={person.id} selected={person.permissions.map((p) => p.permission)} />
             </details>}
           </article>)}
         </div>}
-        <p className="mt-5 text-[11px] leading-5 text-white/35">Invited staff accounts cannot sign in until activation is implemented. Staff permissions do not grant Super Admin or gym-owner privileges.</p>
+        <p className="mt-5 text-[11px] leading-5 text-white/35">Invitation links are single-use and expire after 48 hours. Staff permissions do not grant Super Admin or gym-owner privileges.</p>
       </section>
     </div>
   </AppShell>;
