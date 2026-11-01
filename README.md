@@ -56,7 +56,7 @@ The AWS account and Mumbai-region usage must be reviewed against current account
 
 ## Delivery status
 
-Implemented: public landing page, local container setup, database schema/migration, bootstrap seed, session login/logout, role routing, role-protected dashboard summaries, staff permission policy and CI checks.
+Implemented: public landing page, local container setup, database schema/migration, bootstrap seed, session login/logout, role routing, role-protected dashboard summaries, staff permission policy, sign-in/sign-out audit events and CI checks.
 
 Still pending: member/staff CRUD, memberships, reconciled payment ledger workflows, QR attendance, transactional class booking/waitlist, workouts, diet/progress, public CMS/media, MFA/rate limits, comprehensive integration/E2E tests, backup/restore drills and deployment. This project is not production-ready yet.
 
