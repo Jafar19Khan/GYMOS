@@ -14,7 +14,7 @@
 
 - Login throttling/rate limiting is not implemented yet.
 - MFA and secure account recovery are not implemented yet.
-- Full audit-event writing and review flows are not implemented yet.
+- Authentication sign-in/sign-out events are written to the audit table. Audit coverage for finance, permission changes, exports, deletion and support access, plus review workflows, is still pending.
 - Every future server action/API must verify gym scope and member ownership; dashboard isolation alone is not sufficient.
 - Add integration tests for cross-gym access, IDOR, suspended users, session expiry, permission changes and concurrent writes.
 - Add security headers/CSP review, dependency and image scanning, secret handling, backup/restore and incident drills.
