@@ -2,16 +2,13 @@ import "server-only";
 
 import { createHash, randomUUID } from "node:crypto";
 import { prisma } from "@/lib/prisma";
+import { createLoginThrottleKey } from "@/lib/auth/login-throttle-key";
+
+export { createLoginThrottleKey } from "@/lib/auth/login-throttle-key";
 
 const MAX_FAILED_ATTEMPTS = 5;
 const WINDOW_MS = 15 * 60 * 1000;
 const LOCK_MS = 15 * 60 * 1000;
-
-export function createLoginThrottleKey(email: string, ipAddress: string): string {
-  return createHash("sha256")
-    .update(`gymos-login-v1|${email.trim().toLowerCase()}|${ipAddress.slice(0, 100)}`)
-    .digest("hex");
-}
 
 export async function getLoginThrottle(keyHash: string, now = new Date()) {
   const entry = await prisma.loginThrottle.findUnique({
